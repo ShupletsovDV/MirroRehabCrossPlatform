@@ -3,9 +3,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using MirroRehab.Interfaces;
-using MirroRehab;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace MirroredRehab.Platforms.Windows.Services
+namespace MirroRehab.Platforms.Windows.Services
 {
     public class WindowsHandControllerService
     {
@@ -21,7 +21,7 @@ namespace MirroredRehab.Platforms.Windows.Services
             _positionProcessor = serviceProvider.GetRequiredService<IPositionProcessor>();
         }
 
-        public async Task<bool> StartTrackingAsync(CancellationToken cancellationToken, IDevice device)
+        public async Task<bool> StartTracking(CancellationToken cancellationToken, IDevice device)
         {
             try
             {
@@ -31,29 +31,28 @@ namespace MirroredRehab.Platforms.Windows.Services
                     return false;
                 }
 
-                if ((bool)!_bluetoothService?.IsConnected)
+                if (!_bluetoothService.IsConnected)
                 {
                     Debug.WriteLine($"Подключение к {device.Name}...");
-                    await _bluetoothService?.ConnectToDeviceAsync(device.Address);
+                    await _bluetoothService.ConnectToDeviceAsync(device.Address);
                 }
-            
 
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    await _udpClientService?.StartPingAsync();
-                    var receiveData = await _udpClientService?.ReceiveDataAsync();
+                    await _udpClientService.StartPingAsync();
+                    var receiveData = await _udpClientService.ReceiveDataAsync();
                     Debug.WriteLine($"Данные получены: {receiveData?.type}");
 
                     if (receiveData != null && receiveData.type == "position")
                     {
-                        await _positionProcessor?.ProcessPositionAsync(receiveData, _bluetoothService);
+                        await _positionProcessor.ProcessPositionAsync(receiveData, _bluetoothService);
                     }
                     receiveData = null;
                 }
-            return true;
+                return true;
             }
             catch (Exception ex)
-                {
+            {
                 Debug.WriteLine($"Ошибка отслеживания на Windows: {ex.Message}");
                 return false;
             }

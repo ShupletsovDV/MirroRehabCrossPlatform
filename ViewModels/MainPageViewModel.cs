@@ -6,10 +6,11 @@ using MirroRehab.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Diagnostics;
-using Microsoft.Maui.Storage;
+#if ANDROID
+using Android.Content;
+#endif
+using Microsoft.Maui.ApplicationModel;
 
 namespace MirroRehab.ViewModels
 {
@@ -19,7 +20,7 @@ namespace MirroRehab.ViewModels
         private readonly ICalibrationService _calibrationService;
         private readonly IUdpClientService _udpClientService;
         private readonly IPositionProcessor _positionProcessor;
-        private readonly HandController _handController;
+        private readonly IHandController _handController;
         private CancellationTokenSource _cancellationTokenSource;
         private IDevice _connectedDevice;
 
@@ -60,7 +61,7 @@ namespace MirroRehab.ViewModels
             ICalibrationService calibrationService,
             IUdpClientService udpClientService,
             IPositionProcessor positionProcessor,
-            HandController handController)
+            IHandController handController)
         {
             _bluetoothService = bluetoothService;
             _calibrationService = calibrationService;
@@ -68,10 +69,20 @@ namespace MirroRehab.ViewModels
             _positionProcessor = positionProcessor;
             _handController = handController;
             IsBusy = true;
+
+            if (_handController is HandController controller)
+            {
+                controller.TrackingDataReceived += OnTrackingDataReceived;
+            }
+
             LoadSavedDevices();
             Task.Run(InitialSearchDevicesAsync);
         }
-
+        private void OnTrackingDataReceived(object sender, string data)
+        {
+            MessageInfo = data; // Обновление UI
+            Debug.WriteLine($"[MainPageViewModel] Получены данные: {data}");
+        }
         private void LoadSavedDevices()
         {
             var savedDevices = Preferences.Get("MirroRehabDevices", string.Empty);
@@ -197,7 +208,14 @@ namespace MirroRehab.ViewModels
                 IsRunning = true;
                 Debug.WriteLine($"Запуск отслеживания...");
 
+#if ANDROID
+                var intent = new Intent(Platform.AppContext, typeof(MirroRehab.Platforms.Android.Services.BackgroundService));
+                intent.PutExtra("DeviceName", SelectedDevice.Name);
+                intent.PutExtra("DeviceAddress", SelectedDevice.Address);
+                Platform.AppContext.StartForegroundService(intent);
+#else
                 await _handController.StartTracking(_cancellationTokenSource.Token, SelectedDevice);
+#endif
             }
             catch (Exception ex)
             {

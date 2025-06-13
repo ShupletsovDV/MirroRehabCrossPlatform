@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using MirroRehab.Interfaces;
 using MirroRehab.ViewModels;
+using Microsoft.Maui.Controls;
 
 namespace MirroRehab.Services
 {
@@ -13,28 +14,26 @@ namespace MirroRehab.Services
         private readonly IBluetoothService _bluetoothService;
         private readonly IUdpClientService _udpClientService;
         private readonly IPositionProcessor _positionProcessor;
-        private readonly MainPageViewModel _viewModel;
         private readonly Dictionaries _dictionaries;
+
+        public event EventHandler<string> TrackingDataReceived;
 
         public static HandController GetHandController(
             IBluetoothService bluetoothService,
             IUdpClientService udpClientService,
-            IPositionProcessor positionProcessor,
-            MainPageViewModel viewModel = null)
+            IPositionProcessor positionProcessor)
         {
-            return _instance ??= new HandController(bluetoothService, udpClientService, positionProcessor, viewModel);
+            return _instance ??= new HandController(bluetoothService, udpClientService, positionProcessor);
         }
 
         public HandController(
             IBluetoothService bluetoothService,
             IUdpClientService udpClientService,
-            IPositionProcessor positionProcessor,
-            MainPageViewModel viewModel = null)
+            IPositionProcessor positionProcessor)
         {
             _bluetoothService = bluetoothService ?? throw new ArgumentNullException(nameof(bluetoothService));
             _udpClientService = udpClientService ?? throw new ArgumentNullException(nameof(udpClientService));
             _positionProcessor = positionProcessor ?? throw new ArgumentNullException(nameof(positionProcessor));
-            _viewModel = viewModel;
             _dictionaries = new Dictionaries();
             _dictionaries.UpdateDictionaries();
         }
@@ -65,6 +64,8 @@ namespace MirroRehab.Services
             }
         }
 
+        
+
         public async Task<bool> StartTracking(CancellationToken cancellationToken, IDevice device)
         {
             try
@@ -76,13 +77,15 @@ namespace MirroRehab.Services
                 }
 
 #if ANDROID
-                // Платформоспецифичная логика для Android
-                var platformService = new AndroidHandControllerService();
+                var platformService = new MirroRehab.Platforms.Android.Services.AndroidHandControllerService();
+                return await platformService.StartTrackingAsync(cancellationToken, device);
+#elif WINDOWS
+                var platformService = new MirroRehab.Platforms.Windows.Services.WindowsHandControllerService();
                 return await platformService.StartTracking(cancellationToken, device);
-#else
-                // Платформоспецифичная логика для Windows (или других платформ)
-                return await StartTrackingInternal(cancellationToken, device);
 #endif
+                return false;
+
+
             }
             catch (Exception ex)
             {
@@ -90,30 +93,6 @@ namespace MirroRehab.Services
                 return false;
             }
         }
-
-        private async Task<bool> StartTrackingInternal(CancellationToken cancellationToken, IDevice device)
-        {
-            if (!_bluetoothService.IsConnected)
-            {
-                Debug.WriteLine($"Подключение к {device.Name}...");
-                await _bluetoothService.ConnectToDeviceAsync(device.Address);
-            }
-
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                await _udpClientService.StartPingAsync();
-                var receiveData = await _udpClientService.ReceiveDataAsync();
-                Debug.WriteLine($"Данные получены: {receiveData?.type}");
-
-                if (receiveData != null && receiveData.type == "position")
-                {
-                    await _positionProcessor.ProcessPositionAsync(receiveData, _bluetoothService);
-                }
-                receiveData = null;
-            }
-            return true;
-        }
-
         public async Task DemoMirro(CancellationToken cancellationToken, IDevice device)
         {
             int sleep = 50;
@@ -250,14 +229,7 @@ namespace MirroRehab.Services
 
         private void UpdateViewModel(string message, Color color)
         {
-            if (_viewModel != null)
-            {
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    _viewModel.MessageInfo = message;
-                    _viewModel.StatusColor = color;
-                });
-            }
+            TrackingDataReceived?.Invoke(this, $"Tracking started for {message}");
         }
     }
 }

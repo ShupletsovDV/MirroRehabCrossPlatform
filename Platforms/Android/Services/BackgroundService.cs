@@ -14,6 +14,7 @@ namespace MirroRehab.Platforms.Android.Services
     [Service]
     public class BackgroundService : Service
     {
+        private readonly IServiceProvider _serviceProvider;
         private readonly IUdpClientService _udpClientService;
         private readonly IBluetoothService _bluetoothService;
         private readonly IPositionProcessor _positionProcessor;
@@ -22,10 +23,10 @@ namespace MirroRehab.Platforms.Android.Services
 
         public BackgroundService()
         {
-            var serviceProvider = MauiProgram.CreateMauiApp().Services;
-            _udpClientService = serviceProvider.GetRequiredService<IUdpClientService>();
-            _bluetoothService = serviceProvider.GetRequiredService<IBluetoothService>();
-            _positionProcessor = serviceProvider.GetRequiredService<IPositionProcessor>();
+            _serviceProvider = MauiProgram.CreateMauiApp().Services;
+            _udpClientService = _serviceProvider.GetRequiredService<IUdpClientService>();
+            _bluetoothService = _serviceProvider.GetRequiredService<IBluetoothService>();
+            _positionProcessor = _serviceProvider.GetRequiredService<IPositionProcessor>();
             _cts = new CancellationTokenSource();
         }
 
@@ -57,7 +58,7 @@ namespace MirroRehab.Platforms.Android.Services
                 var notification = new Notification.Builder(this, "mirro_rehab_channel")
                     .SetContentTitle("MirroRehab")
                     .SetContentText($"Прослушивание сервера для устройства {_device.Name}")
-                    .SetSmallIcon(Resource.Drawable.ic_notification)
+                    .SetSmallIcon(Resource.Drawable.notification_action_background)
                     .Build();
 
                 StartForeground(1, notification);
@@ -84,7 +85,7 @@ namespace MirroRehab.Platforms.Android.Services
                     if (receiveData != null && receiveData.type == "position")
                     {
                         await _positionProcessor.ProcessPositionAsync(receiveData, _bluetoothService);
-                        System.Diagnostics.Debug.WriteLine($"Данные обработаны и отправлены на устройство: {_device.Name}");
+                        System.Diagnostics.Debug.WriteLine($"Данные обработаны: {_device.Name}");
                     }
                     else
                     {
@@ -94,7 +95,7 @@ namespace MirroRehab.Platforms.Android.Services
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Ошибка в фоновом сервисе: {ex.Message}");
-                    await Task.Delay(1000, cancellationToken);
+                    await Task.Delay(1000, cancellationToken); // Задержка перед повторной попыткой
                 }
             }
         }
@@ -102,7 +103,7 @@ namespace MirroRehab.Platforms.Android.Services
         public override void OnDestroy()
         {
             _cts?.Cancel();
-            _bluetoothService?.DisconnectDeviceAsync().GetAwaiter().GetResult();
+            _bluetoothService?.DisconnectDevice();
             System.Diagnostics.Debug.WriteLine("Фоновый сервис остановлен");
             base.OnDestroy();
         }

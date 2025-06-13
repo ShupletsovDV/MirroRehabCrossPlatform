@@ -2,7 +2,7 @@
 using MirroRehab.Interfaces;
 using MirroRehab.Services;
 using MirroRehab.ViewModels;
-
+using MirroRehab;
 
 namespace MirroRehab
 {
@@ -20,31 +20,29 @@ namespace MirroRehab
                 });
 
 #if DEBUG
-    		builder.Logging.AddDebug();
+            builder.Logging.AddDebug();
 #endif
 
-            // Регистрация IBluetoothService
-#if ANDROID
-            builder.Services.AddSingleton<IBluetoothService, Platforms.Android.Services.BluetoothService>();
-#elif WINDOWS
-            builder.Services.AddSingleton<IBluetoothService, MirroRehab.Platforms.Windows.BluetoothService>();
-#else
-            // Для неподдерживаемых платформ (например, iOS, macOS)
-            builder.Services.AddSingleton<IBluetoothService>(provider =>
-                throw new NotSupportedException("BluetoothService не поддерживается на этой платформе."));
-#endif
-
+            // Регистрация сервисов
+            builder.Services.AddSingleton<IHandController, HandController>();
             builder.Services.AddSingleton<ICalibrationService, CalibrationService>();
             builder.Services.AddSingleton<IUdpClientService, UdpClientService>();
             builder.Services.AddSingleton<IPositionProcessor, PositionProcessor>();
-            builder.Services.AddSingleton<HandController>(provider =>
-                HandController.GetHandController(
-                    provider.GetRequiredService<IBluetoothService>(),
-                    provider.GetRequiredService<IUdpClientService>(),
-                    provider.GetRequiredService<IPositionProcessor>()));
             builder.Services.AddSingleton<Dictionaries>();
+            builder.Services.AddSingleton<MainPage>();
             builder.Services.AddSingleton<MainPageViewModel>();
-            builder.Services.AddTransient<MainPage>();
+            builder.Services.AddSingleton<AppShell>();
+
+            // Платформоспецифичные сервисы
+#if ANDROID
+            builder.Services.AddSingleton<IBluetoothService, MirroRehab.Platforms.Android.Services.BluetoothService>();
+#elif WINDOWS
+            builder.Services.AddSingleton<IBluetoothService, MirroRehab.Platforms.Windows.Services.BluetoothService>();
+#elif IOS || MACCATALYST
+            builder.Services.AddSingleton<IBluetoothService>(sp => throw new PlatformNotSupportedException("Bluetooth не поддерживается на iOS и macCatalyst"));
+#else
+            builder.Services.AddSingleton<IBluetoothService>(sp => throw new PlatformNotSupportedException("Платформа не поддерживается"));
+#endif
 
             return builder.Build();
         }
