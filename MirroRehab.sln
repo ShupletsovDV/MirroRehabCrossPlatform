@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34511.84
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MirroRehab", "MirroRehab.csproj", "{45CA6A02-3C63-4A9A-9AD8-28D15D71C16E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{45CA6A02-3C63-4A9A-9AD8-28D15D71C16E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45CA6A02-3C63-4A9A-9AD8-28D15D71C16E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45CA6A02-3C63-4A9A-9AD8-28D15D71C16E}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{45CA6A02-3C63-4A9A-9AD8-28D15D71C16E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45CA6A02-3C63-4A9A-9AD8-28D15D71C16E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CBD3252A-1B89-48AD-9A7F-19AF28AA8097}
+	EndGlobalSection
+EndGlobal

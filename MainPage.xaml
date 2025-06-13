@@ -1,0 +1,74 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:DataType="vm:MainPageViewModel"
+             xmlns:vm="clr-namespace:MirroRehab.ViewModels"
+             xmlns:controls="clr-namespace:MirroRehab.Controls"
+             x:Class="MirroRehab.MainPage">
+
+    <Grid Padding="20">
+        <!-- Основной контейнер -->
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <!-- Для кнопок -->
+            <ColumnDefinition Width="*"/>
+            <!-- Для панели статуса -->
+        </Grid.ColumnDefinitions>
+
+        <!-- Кнопки (левая панель) -->
+        <VerticalStackLayout Grid.Column="0" 
+                        Spacing="25" 
+                        Padding="30,0" 
+                        VerticalOptions="Start">
+            <Button Text="Поиск" Command="{Binding SearchDevicesCommand}" Margin="10,0,0,0" />
+            <Picker Title="Выберите устройство"
+                    ItemsSource="{Binding Devices}"
+                    SelectedItem="{Binding SelectedDevice}"
+                    ItemDisplayBinding="{Binding Name}"
+                    WidthRequest="200" />
+            <Button Text="Калибровать" Command="{Binding CalibrateDeviceCommand}" 
+                IsEnabled="{Binding IsConnected}"/>
+            <Button Text="Запустить" Command="{Binding StartTrackingCommand}" 
+                IsEnabled="{Binding IsCalibrated}"/>
+            <Button Text="Остановить" Command="{Binding StopTrackingCommand}" 
+                IsEnabled="{Binding IsRunning}"/>
+            <Button Text="Запуск демо" Command="{Binding DemoMirroCommand}" />
+        </VerticalStackLayout>
+
+        <!-- Панель статуса (правая часть) -->
+        <Grid Grid.Column="1" 
+          HorizontalOptions="FillAndExpand" 
+          VerticalOptions="FillAndExpand"
+          BackgroundColor="LightGray" >
+            <!-- Для наглядности -->
+
+            <!-- Центрированный контент -->
+            <VerticalStackLayout 
+            Spacing="25" 
+            VerticalOptions="Center" 
+            HorizontalOptions="Center" >
+
+                <!-- Состояние загрузки -->
+                <controls:LoadingIndicator IsVisible="{Binding IsBusy}"/>
+
+                <!-- Состояние ошибки -->
+                <Image Source="mistake.png"
+                   IsVisible="{Binding ShowError}"
+                   HeightRequest="60"
+                   WidthRequest="60"
+                   HorizontalOptions="Center"/>
+
+                <!-- Статусное сообщение -->
+                <Label Text="{Binding MessageInfo}" 
+                   HorizontalOptions="Center"
+                   TextColor="{Binding StatusColor}"/>
+
+                <!-- Контейнер для калибровки -->
+                <ContentView x:Name="CalibrationContainer"
+                       IsVisible="{Binding IsCalibrating}">
+                    <!-- Здесь будет ваша страница калибровки -->
+                </ContentView>
+            </VerticalStackLayout>
+        </Grid>
+    </Grid>
+</ContentPage>
