@@ -39,8 +39,8 @@ namespace MirroRehab.Platforms.Windows.Services
 
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    await _udpClientService.StartPingAsync();
-                    var receiveData = await _udpClientService.ReceiveDataAsync();
+                    await _udpClientService.PingSensoAsync();
+                    var receiveData = await _udpClientService.ReceiveDataAsync(cancellationToken);
                     Debug.WriteLine($"Данные получены: {receiveData?.type}");
 
                     if (receiveData != null && receiveData.type == "position")

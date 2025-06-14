@@ -31,7 +31,7 @@
             <Button Text="Запустить" Command="{Binding StartTrackingCommand}" 
                 IsEnabled="{Binding IsCalibrated}"/>
             <Button Text="Остановить" Command="{Binding StopTrackingCommand}" 
-                IsEnabled="{Binding IsRunning}"/>
+                IsEnabled="True"/>
             <Button Text="Запуск демо" Command="{Binding DemoMirroCommand}" />
         </VerticalStackLayout>
 

@@ -206,6 +206,7 @@ namespace MirroRehab.ViewModels
                 await EnsureConnected();
                 _cancellationTokenSource = new CancellationTokenSource();
                 IsRunning = true;
+                IsCalibrated = true;
                 Debug.WriteLine($"Запуск отслеживания...");
 
 #if ANDROID

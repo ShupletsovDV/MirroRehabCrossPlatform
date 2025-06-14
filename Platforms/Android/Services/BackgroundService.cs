@@ -30,10 +30,7 @@ namespace MirroRehab.Platforms.Android.Services
             _cts = new CancellationTokenSource();
         }
 
-        public override IBinder OnBind(Intent intent)
-        {
-            return null;
-        }
+        public override IBinder OnBind(Intent intent) => null;
 
         public override StartCommandResult OnStartCommand(Intent intent, StartCommandFlags flags, int startId)
         {
@@ -42,7 +39,7 @@ namespace MirroRehab.Platforms.Android.Services
 
             if (string.IsNullOrEmpty(deviceName) || string.IsNullOrEmpty(deviceAddress))
             {
-                System.Diagnostics.Debug.WriteLine("Ошибка: устройство не передано");
+                System.Diagnostics.Debug.WriteLine("[BackgroundService] Ошибка: устройство не передано");
                 StopSelf();
                 return StartCommandResult.NotSticky;
             }
@@ -51,61 +48,90 @@ namespace MirroRehab.Platforms.Android.Services
 
             if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
             {
-                var channel = new NotificationChannel("mirro_rehab_channel", "MirroRehab Service", NotificationImportance.Low);
+                var channelId = "mirro_rehab_channel";
+                var channel = new NotificationChannel(channelId, "MirroRehab Service", NotificationImportance.Low);
                 var notificationManager = GetSystemService(NotificationService) as NotificationManager;
                 notificationManager?.CreateNotificationChannel(channel);
 
-                var notification = new Notification.Builder(this, "mirro_rehab_channel")
+                var notification = new Notification.Builder(this, channelId)
                     .SetContentTitle("MirroRehab")
                     .SetContentText($"Прослушивание сервера для устройства {_device.Name}")
-                    .SetSmallIcon(Resource.Drawable.notification_action_background)
+                    .SetSmallIcon(Resource.Mipmap.appicon_background)
+                    .SetOngoing(true)
                     .Build();
 
                 StartForeground(1, notification);
             }
 
             Task.Run(() => RunBackgroundTask(_cts.Token));
+            System.Diagnostics.Debug.WriteLine("[BackgroundService] Сервис запущен");
             return StartCommandResult.Sticky;
         }
 
         private async Task RunBackgroundTask(CancellationToken cancellationToken)
         {
+            System.Diagnostics.Debug.WriteLine("[BackgroundService] Фоновая задача запущена");
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
+                    System.Diagnostics.Debug.WriteLine("[BackgroundService] Начало итерации");
                     if (!_bluetoothService.IsConnected)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Подключение к {_device.Name} ({_device.Address})...");
+                        System.Diagnostics.Debug.WriteLine($"[BackgroundService] Подключение к {_device.Name} ({_device.Address})...");
                         await _bluetoothService.ConnectToDeviceAsync(_device.Address);
+                       
+                        System.Diagnostics.Debug.WriteLine($"[BackgroundService] Подключено к {_device.Name}");
                     }
 
-                    await _udpClientService.StartPingAsync();
-                    var receiveData = await _udpClientService.ReceiveDataAsync();
+                    System.Diagnostics.Debug.WriteLine("[BackgroundService] Ожидание данных...");
+                    var receiveData = await _udpClientService.ReceiveDataAsync(cancellationToken);
                     if (receiveData != null && receiveData.type == "position")
                     {
-                        await _positionProcessor.ProcessPositionAsync(receiveData, _bluetoothService);
-                        System.Diagnostics.Debug.WriteLine($"Данные обработаны: {_device.Name}");
+                        if (_bluetoothService.IsConnected)
+                        {
+                            await _positionProcessor.ProcessPositionAsync(receiveData, _bluetoothService);
+                            System.Diagnostics.Debug.WriteLine($"[BackgroundService] Данные обработаны: {_device.Name}");
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine("[BackgroundService] Соединение потеряно перед отправкой данных");
+                            _bluetoothService.DisconnectDevice();
+                            continue;
+                        }
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine("Получены некорректные данные или данных нет");
+                        System.Diagnostics.Debug.WriteLine($"[BackgroundService] Получены некорректные данные или данных нет: {receiveData?.type}");
                     }
+                    System.Diagnostics.Debug.WriteLine("[BackgroundService] Итерация завершена");
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Ошибка в фоновом сервисе: {ex.Message}");
-                    await Task.Delay(1000, cancellationToken); // Задержка перед повторной попыткой
+                    System.Diagnostics.Debug.WriteLine($"[BackgroundService] Ошибка в фоновом сервисе: {ex.Message}, StackTrace: {ex.StackTrace}");
+                    _bluetoothService.DisconnectDevice(); // Сброс соединения при ошибке
+                    await Task.Delay(1000, cancellationToken);
                 }
             }
         }
-
         public override void OnDestroy()
         {
             _cts?.Cancel();
             _bluetoothService?.DisconnectDevice();
-            System.Diagnostics.Debug.WriteLine("Фоновый сервис остановлен");
+            System.Diagnostics.Debug.WriteLine("[BackgroundService] Фоновый сервис остановлен");
             base.OnDestroy();
+        }
+
+        public override void OnTaskRemoved(Intent rootIntent)
+        {
+            System.Diagnostics.Debug.WriteLine("[BackgroundService] Сервис удалён из задач");
+            base.OnTaskRemoved(rootIntent);
+        }
+
+        public override void OnLowMemory()
+        {
+            System.Diagnostics.Debug.WriteLine("[BackgroundService] Нехватка памяти, сервис может быть остановлен");
+            base.OnLowMemory();
         }
     }
 }

@@ -1,9 +1,12 @@
 ﻿using Android;
+using Android.App;
+using Android.Content;
+using Android.Content.PM;
+using Android.OS;
+using Android.Provider;
 using AndroidX.Core.App;
 using AndroidX.Core.Content;
-using Android.OS;
-using Android.App;
-using Android.Content.PM;
+using Microsoft.Maui;
 using Plugin.CurrentActivity;
 
 namespace MirroRehab
@@ -14,28 +17,40 @@ namespace MirroRehab
         protected override void OnCreate(Bundle savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
+
+            // Создание канала уведомлений
             if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
             {
-                var channel = new NotificationChannel("channel_id", "MirroRehab Service", NotificationImportance.Low);
+                var channel = new NotificationChannel("mirro_rehab_channel", "MirroRehab Service", NotificationImportance.Low);
                 var notificationManager = GetSystemService(NotificationService) as NotificationManager;
-                notificationManager.CreateNotificationChannel(channel);
+                notificationManager?.CreateNotificationChannel(channel);
             }
+
+            // Запрос на игнорирование оптимизации батареи
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
+            {
+                var powerManager = (PowerManager)GetSystemService(PowerService);
+                if (!powerManager.IsIgnoringBatteryOptimizations(PackageName))
+                {
+                    var intent = new Intent(Settings.ActionRequestIgnoreBatteryOptimizations);
+                    intent.SetData(Android.Net.Uri.Parse($"package:{PackageName}"));
+                    StartActivity(intent);
+                }
+            }
+
             RequestBluetoothPermissions();
             CrossCurrentActivity.Current.Init(this, savedInstanceState);
         }
 
         private void RequestBluetoothPermissions()
         {
-            // Для Android 6.0+ (API 23+) запрашиваем разрешения во время выполнения
             if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
             {
                 var permissionsToRequest = new List<string>();
 
-                // Проверяем и запрашиваем необходимые разрешения
                 if (ContextCompat.CheckSelfPermission(this, Manifest.Permission.AccessFineLocation) != Permission.Granted)
                     permissionsToRequest.Add(Manifest.Permission.AccessFineLocation);
 
-                // Для Android 12+ (API 31+)
                 if (Build.VERSION.SdkInt >= BuildVersionCodes.S)
                 {
                     if (ContextCompat.CheckSelfPermission(this, Manifest.Permission.BluetoothScan) != Permission.Granted)
@@ -44,7 +59,6 @@ namespace MirroRehab
                         permissionsToRequest.Add(Manifest.Permission.BluetoothConnect);
                 }
 
-                // Запрашиваем разрешения, если они не предоставлены
                 if (permissionsToRequest.Count > 0)
                     ActivityCompat.RequestPermissions(this, permissionsToRequest.ToArray(), 0);
             }

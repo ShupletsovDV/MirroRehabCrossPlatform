@@ -12,22 +12,25 @@ namespace MirroRehab.Services
     public class UdpClientService : IUdpClientService
     {
         private readonly UdpClient _client;
-        private readonly IPEndPoint _remoteEP;
+        private  IPEndPoint _remoteEP;
 
         public UdpClientService()
         {
             _client = new UdpClient();
             _client.Client.ReceiveTimeout = 5000; // Таймаут 5 секунд
-            _remoteEP = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 53452);
+            int port = DeviceInfo.Platform == DevicePlatform.Android ? 43450 : 53452;
+            _remoteEP = new IPEndPoint(IPAddress.Parse("127.0.0.1"), port);  //на пк - 53452
         }
 
-        public async Task StartPingAsync()
+        public async Task PingSensoAsync()
         {
             try
             {
-                var pingBytes = Encoding.ASCII.GetBytes("ping");
-                await _client.SendAsync(pingBytes, pingBytes.Length, _remoteEP);
-                System.Diagnostics.Debug.WriteLine("Ping отправлен на 127.0.0.1:53452");
+                string messageString = "{\"type\":\"ping\"}";
+                byte[] messageBytes = Encoding.UTF8.GetBytes(messageString);
+                await _client.SendAsync(messageBytes, messageBytes.Length, _remoteEP);
+                Debug.WriteLine($"[UdpClientService] Отправлен пакет: {messageString} на {_remoteEP}");
+                
             }
             catch (Exception ex)
             {
@@ -36,55 +39,86 @@ namespace MirroRehab.Services
             }
         }
 
-        public async Task<JsonModel> ReceiveDataAsync()
+        public async Task<JsonModel> ReceiveDataAsync(CancellationToken cancellationToken = default)
         {
             try
             {
-                var messageBytes = Encoding.ASCII.GetBytes("ping");
-                await _client.SendAsync(messageBytes, messageBytes.Length, _remoteEP);
-                System.Diagnostics.Debug.WriteLine("Ping отправлен на 127.0.0.1:53452");
+                // Отправка "ping"
+                await PingSensoAsync();
 
-                var receiveResult = await _client.ReceiveAsync().WaitAsync(TimeSpan.FromSeconds(5));
-                var data = Encoding.ASCII.GetString(receiveResult.Buffer).TrimEnd('\0');
-
-                // Исправляем потенциально некорректный JSON
-                if (data.EndsWith("]"))
+                
+                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken))
                 {
-                    data += "}";
-                }
-                if (!data.EndsWith("}") && !string.IsNullOrEmpty(data))
-                {
-                    data = data.Substring(0, data.Length - 1);
-                }
+                    Debug.WriteLine("[UdpClientService] Ожидание ответа от сервера...");
+                    UdpReceiveResult receiveResult = await _client.ReceiveAsync(linkedCts.Token);
+                    Debug.WriteLine("[UdpClientService] Ответ получен");
+                    string receiveString = Encoding.UTF8.GetString(receiveResult.Buffer).TrimEnd('\0');
+                    Debug.WriteLine($"[UdpClientService] данные получены");
 
-                System.Diagnostics.Debug.WriteLine($"Получены данные: {data}");
+                    // Десериализация JSON
+                    JsonModel data = JsonConvert.DeserializeObject<JsonModel>(receiveString);
+                    Debug.WriteLine($"[UdpClientService] Десериализовано: type={data?.type}, src={data?.src}");
 
-                if (string.IsNullOrEmpty(data))
-                {
-                    return null;
+                    return data;
                 }
-
-                var jsonModel = JsonConvert.DeserializeObject<JsonModel>(data);
-                return jsonModel;
-            }
-            catch (TimeoutException)
-            {
-                System.Diagnostics.Debug.WriteLine("Таймаут получения данных от сервера");
-                return null;
             }
             catch (SocketException ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Ошибка сокета: {ex.Message}, Код ошибки: {ex.SocketErrorCode}");
+                Debug.WriteLine($"[UdpClientService] Ошибка сокета: {ex.Message}, Код ошибки: {ex.SocketErrorCode}");
+                return null;
+            }
+            catch (OperationCanceledException ex)
+            {
+                Debug.WriteLine($"[UdpClientService] Операция отменена: {ex.Message}");
                 return null;
             }
             catch (JsonException ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Ошибка десериализации JSON: {ex.Message}");
+                Debug.WriteLine($"[UdpClientService] Ошибка десериализации JSON: {ex.Message}");
                 return null;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Ошибка получения данных: {ex.Message}");
+                Debug.WriteLine($"[UdpClientService] Ошибка получения данных: {ex.Message}, StackTrace: {ex.StackTrace}");
+                return null;
+            }
+        }
+        // Для обратной совместимости
+        public JsonModel ReceiveData()
+        {
+            try
+            {
+                // Отправка "ping"
+                string messageString = "ping";
+                byte[] messageBytes = Encoding.ASCII.GetBytes(messageString);
+                _client.Send(messageBytes, messageBytes.Length, _remoteEP);
+                Debug.WriteLine($"[UdpClientService] Отправлен ping на {_remoteEP}");
+
+                // Получение ответа
+                byte[] receiveBytes = _client.Receive(ref _remoteEP);
+                string receiveString = Encoding.ASCII.GetString(receiveBytes).TrimEnd('\0');
+                Debug.WriteLine($"[UdpClientService] Получены данные: {receiveString}");
+
+                // Десериализация JSON
+                JsonModel data = JsonConvert.DeserializeObject<JsonModel>(receiveString);
+                Debug.WriteLine($"[UdpClientService] Десериализовано: {data}");
+
+                return data;
+            }
+            catch (SocketException ex)
+            {
+                Debug.WriteLine($"[UdpClientService] Ошибка сокета: {ex.Message}, Код ошибки: {ex.SocketErrorCode}");
+                return null;
+            }
+            catch (JsonException ex)
+            {
+                Debug.WriteLine($"[UdpClientService] Ошибка десериализации JSON: {ex.Message}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[UdpClientService] Ошибка получения данных: {ex.Message}");
                 return null;
             }
         }

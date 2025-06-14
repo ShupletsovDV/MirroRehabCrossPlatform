@@ -4,7 +4,8 @@ namespace MirroRehab.Interfaces
 {
     public interface IUdpClientService
     {
-        Task StartPingAsync();
-        Task<JsonModel> ReceiveDataAsync();
+        Task PingSensoAsync();
+        JsonModel ReceiveData();
+        Task<JsonModel> ReceiveDataAsync(CancellationToken cancellationToken);
     }
 }
