@@ -3,9 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using MirroRehab.Interfaces;
 using MirroRehab.Models;
 using MirroRehab.Services;
-using System;
 using System.Collections.ObjectModel;
-using System.Linq;
 using System.Diagnostics;
 #if ANDROID
 using Android.Content;
@@ -69,7 +67,7 @@ namespace MirroRehab.ViewModels
             _positionProcessor = positionProcessor;
             _handController = handController;
             IsBusy = true;
-
+            Application.Current.UserAppTheme = AppTheme.Light;
             if (_handController is HandController controller)
             {
                 controller.TrackingDataReceived += OnTrackingDataReceived;
@@ -163,10 +161,18 @@ namespace MirroRehab.ViewModels
             if (_connectedDevice == null || !_bluetoothService.IsConnected || _connectedDevice.Address != SelectedDevice.Address)
             {
                 Debug.WriteLine($"Подключение к {SelectedDevice.Name}...");
-                _connectedDevice = await _bluetoothService.ConnectToDeviceAsync(SelectedDevice.Address);
-                IsConnected = _bluetoothService.IsConnected;
-                MessageInfo = $"Подключено к {SelectedDevice.Name}";
-                StatusColor = Colors.Green;
+                try
+                {
+                    _connectedDevice = await _bluetoothService.ConnectToDeviceAsync(SelectedDevice.Address);
+                    IsConnected = _bluetoothService.IsConnected;
+                    MessageInfo = $"Подключено к {SelectedDevice.Name}";
+                    StatusColor = Colors.Green;
+                }
+                catch (Exception ex)
+                {
+                    await _bluetoothService.DisconnectDeviceAsync();
+                    throw;
+                }
             }
         }
 

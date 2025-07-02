@@ -5,11 +5,27 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:MirroRehab"
     Shell.FlyoutBehavior="Disabled"
-    Title="MirroRehab">
+    Title="RehabiliTech">
 
+    <Shell.TitleView> 
+        <Grid ColumnDefinitions="Auto,*,Auto" VerticalOptions="Center" Padding="20,0,20,0">
+            <!-- Логотип и название слева -->
+            <HorizontalStackLayout Grid.Column="0"  VerticalOptions="Center" Spacing="10">
+                <Image Source="logo2.png" HeightRequest="30" WidthRequest="30" />
+                <Label Text="MirroRehab" VerticalOptions="Center" FontSize="Title"/>
+            </HorizontalStackLayout>
+            <!-- Переключатель справа -->
+            <ImageButton x:Name="ThemeButton"
+                     Grid.Column="1"
+                     HorizontalOptions="End"
+                     VerticalOptions="Center"
+                     Source="sun_dark.png"
+                     Clicked="OnThemeButtonClicked" />
+        </Grid>
+    </Shell.TitleView>
+    
     <ShellContent
         Title="MirroRehab"
-        
         ContentTemplate="{DataTemplate local:MainPage}"
         Route="MainPage" />
 

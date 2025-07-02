@@ -6,6 +6,7 @@
              xmlns:controls="clr-namespace:MirroRehab.Controls"
              x:Class="MirroRehab.MainPage">
 
+    
     <Grid Padding="20">
         <!-- Основной контейнер -->
         <Grid.ColumnDefinitions>
@@ -18,21 +19,21 @@
         <!-- Кнопки (левая панель) -->
         <VerticalStackLayout Grid.Column="0" 
                         Spacing="25" 
-                        Padding="30,0" 
+                        Padding="0,0,30,0" 
                         VerticalOptions="Start">
-            <Button Text="Поиск" Command="{Binding SearchDevicesCommand}" Margin="10,0,0,0" />
+            <Button Text="Поиск" Command="{Binding SearchDevicesCommand}" />
             <Picker Title="Выберите устройство"
                     ItemsSource="{Binding Devices}"
                     SelectedItem="{Binding SelectedDevice}"
                     ItemDisplayBinding="{Binding Name}"
                     WidthRequest="200" />
             <Button Text="Калибровать" Command="{Binding CalibrateDeviceCommand}" 
-                IsEnabled="{Binding IsConnected}"/>
+                IsEnabled="True"/>
             <Button Text="Запустить" Command="{Binding StartTrackingCommand}" 
-                IsEnabled="{Binding IsCalibrated}"/>
+                IsEnabled="True"/>
             <Button Text="Остановить" Command="{Binding StopTrackingCommand}" 
                 IsEnabled="True"/>
-            <Button Text="Запуск демо" Command="{Binding DemoMirroCommand}" />
+            <Button Text="Запуск демо" Command="{Binding DemoMirroCommand}" IsEnabled="True"/>
         </VerticalStackLayout>
 
         <!-- Панель статуса (правая часть) -->

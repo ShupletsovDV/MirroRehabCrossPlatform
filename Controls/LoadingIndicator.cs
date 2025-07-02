@@ -1,52 +1,85 @@
 ﻿using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
+using System.Threading.Tasks;
 
 namespace MirroRehab.Controls
 {
     public class LoadingIndicator : ContentView
     {
+        private readonly ContentView _rotator;
+        private bool _isAnimating;
+
         public LoadingIndicator()
         {
-            var activityIndicator = new ActivityIndicator
+            WidthRequest = 60;
+            HeightRequest = 60;
+
+            var container = new Grid
             {
-                IsRunning = true,
-                Color = Colors.Blue,
-                Scale = 1.5
+                WidthRequest = 60,
+                HeightRequest = 60
             };
 
-            var dotsAnimation = new Label
-            {
-                Text = ".",
-                FontSize = 24,
-                HorizontalOptions = LayoutOptions.Center
-            };
+            container.RowDefinitions.Add(new RowDefinition());
+            container.RowDefinitions.Add(new RowDefinition());
+            container.ColumnDefinitions.Add(new ColumnDefinition());
+            container.ColumnDefinitions.Add(new ColumnDefinition());
 
-            // Создаем анимацию
-            var animation = new Animation(v =>
+            for (int i = 0; i < 4; i++)
             {
-                dotsAnimation.Text = new string('.', (int)(v % 3) + 1);
-            }, 0, 3);
-
-            // Запускаем анимацию с повторением
-            animation.Commit(
-                owner: dotsAnimation,
-                name: "DotsAnimation",
-                rate: 16,
-                length: 500,
-                easing: Easing.Linear,
-                finished: (v, wasCancelled) =>
+                var circle = new Frame
                 {
-                    if (!wasCancelled)
-                    {
-                        dotsAnimation.Text = ".";
-                        animation.Commit(dotsAnimation, "DotsAnimation", 16, 500, Easing.Linear);
-                    }
-                });
+                    WidthRequest = 16,
+                    HeightRequest = 16,
+                    CornerRadius = 8,
+                    BackgroundColor = Colors.Blue,
+                    HasShadow = false,
+                    Padding = 0,
+                    HorizontalOptions = LayoutOptions.Center,
+                    VerticalOptions = LayoutOptions.Center
+                };
 
-            Content = new VerticalStackLayout
+                container.Children.Add(circle);
+                Grid.SetRow(circle, i / 2);
+                Grid.SetColumn(circle, i % 2);
+            }
+
+            _rotator = new ContentView
             {
-                Spacing = 10,
-                Children = { activityIndicator, dotsAnimation }
+                WidthRequest = 60,
+                HeightRequest = 60,
+                Content = container
             };
+
+            Content = _rotator;
+        }
+
+        protected override void OnParentSet()
+        {
+            base.OnParentSet();
+
+            if (Parent != null && !_isAnimating)
+                StartAnimation();
+        }
+
+        private async void StartAnimation()
+        {
+            _isAnimating = true;
+
+            while (_isAnimating)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    await Task.WhenAll(
+                        _rotator.RotateTo(_rotator.Rotation + 45, 300, Easing.SinInOut),
+                        _rotator.ScaleTo(i % 2 == 0 ? 1.15 : 1.0, 300, Easing.SinInOut)
+                    );
+                }
+
+                // Легкая пауза между оборотами
+                await Task.Delay(100);
+            }
         }
     }
+
 }

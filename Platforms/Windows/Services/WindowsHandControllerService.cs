@@ -13,12 +13,14 @@ namespace MirroRehab.Platforms.Windows.Services
         private readonly IUdpClientService _udpClientService;
         private readonly IPositionProcessor _positionProcessor;
 
-        public WindowsHandControllerService()
+        public WindowsHandControllerService(
+            IBluetoothService bluetoothService,
+            IUdpClientService udpClientService,
+            IPositionProcessor positionProcessor)
         {
-            var serviceProvider = MauiProgram.CreateMauiApp().Services;
-            _bluetoothService = serviceProvider.GetRequiredService<IBluetoothService>();
-            _udpClientService = serviceProvider.GetRequiredService<IUdpClientService>();
-            _positionProcessor = serviceProvider.GetRequiredService<IPositionProcessor>();
+            _bluetoothService = bluetoothService ?? throw new ArgumentNullException(nameof(bluetoothService));
+            _udpClientService = udpClientService ?? throw new ArgumentNullException(nameof(udpClientService));
+            _positionProcessor = positionProcessor ?? throw new ArgumentNullException(nameof(positionProcessor));
         }
 
         public async Task<bool> StartTracking(CancellationToken cancellationToken, IDevice device)
@@ -31,11 +33,9 @@ namespace MirroRehab.Platforms.Windows.Services
                     return false;
                 }
 
-                if (!_bluetoothService.IsConnected)
-                {
-                    Debug.WriteLine($"Подключение к {device.Name}...");
-                    await _bluetoothService.ConnectToDeviceAsync(device.Address);
-                }
+                // Не вызываем повторное подключение здесь!
+                Debug.WriteLine("Соединение предполагается уже открытым, повторное подключение не требуется.");
+
 
                 while (!cancellationToken.IsCancellationRequested)
                 {
@@ -54,8 +54,10 @@ namespace MirroRehab.Platforms.Windows.Services
             catch (Exception ex)
             {
                 Debug.WriteLine($"Ошибка отслеживания на Windows: {ex.Message}");
+                await _bluetoothService.DisconnectDeviceAsync();
                 return false;
             }
         }
+
     }
 }

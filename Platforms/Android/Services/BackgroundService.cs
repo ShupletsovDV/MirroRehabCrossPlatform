@@ -56,7 +56,7 @@ namespace MirroRehab.Platforms.Android.Services
                 var notification = new Notification.Builder(this, channelId)
                     .SetContentTitle("MirroRehab")
                     .SetContentText($"Прослушивание сервера для устройства {_device.Name}")
-                    .SetSmallIcon(Resource.Mipmap.appicon_background)
+                    .SetSmallIcon(Resource.Mipmap.appicon)
                     .SetOngoing(true)
                     .Build();
 

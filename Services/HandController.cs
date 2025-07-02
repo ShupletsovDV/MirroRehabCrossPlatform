@@ -17,6 +17,7 @@ namespace MirroRehab.Services
         private readonly Dictionaries _dictionaries;
 
         public event EventHandler<string> TrackingDataReceived;
+        public event EventHandler<(string Message, Color Color)> DemoStatusUpdated;
 
         public static HandController GetHandController(
             IBluetoothService bluetoothService,
@@ -223,13 +224,19 @@ namespace MirroRehab.Services
             {
                 Debug.WriteLine($"Ошибка в демо: {ex.Message}");
                 UpdateViewModel($"Ошибка: {ex.Message}", Colors.Yellow);
-                throw;
+            }
+            finally
+            {
+                await _bluetoothService.DisconnectDeviceAsync();
+                UpdateViewModel("Соединение закрыто", Colors.Black);
             }
         }
 
         private void UpdateViewModel(string message, Color color)
         {
-            TrackingDataReceived?.Invoke(this, $"Tracking started for {message}");
+            TrackingDataReceived?.Invoke(this, $"handController: {message}");
+
         }
+        
     }
 }

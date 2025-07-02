@@ -11,13 +11,17 @@
     <Color x:Key="PrimaryDarkText">#fff</Color>
     <Color x:Key="Secondary">#9D9E9F</Color>
     <Color x:Key="SecondaryDarkText">#9D9E9F</Color>
-    <Color x:Key="Tertiary">#2B0B98</Color>
+    <Color x:Key="Tertiary">#242753</Color>
+
+    <Color x:Key="DisabledLight">#E8EDF2</Color>
+    <Color x:Key="DisabledDark">#21384A</Color>
+
+    <Color x:Key="BackgroundLight">#F7FAFC</Color>
+    <Color x:Key="BackgroundDark">#0F1A24</Color>
+    <Color x:Key="Transparent">Transparent</Color>
 
     <Color x:Key="White">White</Color>
     <Color x:Key="Black">Black</Color>
-    <Color x:Key="Magenta">#D600AA</Color>
-    <Color x:Key="MidnightBlue">#190649</Color>
-    <Color x:Key="OffBlack">#1f1f1f</Color>
 
     <Color x:Key="Gray100">#E1E1E1</Color>
     <Color x:Key="Gray200">#C8C8C8</Color>
