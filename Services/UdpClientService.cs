@@ -18,7 +18,8 @@ namespace MirroRehab.Services
         {
             _client = new UdpClient();
             _client.Client.ReceiveTimeout = 5000; // Таймаут 5 секунд
-            int port = DeviceInfo.Platform == DevicePlatform.Android ? 43450 : 53452;
+            int port = DeviceInfo.Platform == DevicePlatform.Android ? 43450 : 53450;
+           
             _remoteEP = new IPEndPoint(IPAddress.Parse("127.0.0.1"), port);  //на пк - 53452
         }
 
@@ -43,14 +44,11 @@ namespace MirroRehab.Services
         {
             try
             {
-                // Отправка "ping"
-                await PingSensoAsync();
-
                 
                 using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
                 using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken))
                 {
-                    Debug.WriteLine("[UdpClientService] Ожидание ответа от сервера...");
+                    /*Debug.WriteLine("[UdpClientService] Ожидание ответа от сервера...");
                     UdpReceiveResult receiveResult = await _client.ReceiveAsync(linkedCts.Token);
                     Debug.WriteLine("[UdpClientService] Ответ получен");
                     string receiveString = Encoding.UTF8.GetString(receiveResult.Buffer).TrimEnd('\0');
@@ -60,7 +58,19 @@ namespace MirroRehab.Services
                     JsonModel data = JsonConvert.DeserializeObject<JsonModel>(receiveString);
                     Debug.WriteLine($"[UdpClientService] Десериализовано: type={data?.type}, src={data?.src}");
 
-                    return data;
+                    return data;*/
+
+
+
+                    string messageString = "ping";
+                    byte[] messageBytes = Encoding.ASCII.GetBytes(messageString);
+                    
+                    _client.Send(messageBytes, messageBytes.Length, _remoteEP);
+
+                    byte[] receiveBytes = _client.Receive(ref _remoteEP);
+                    string receiveString = Encoding.ASCII.GetString(receiveBytes).TrimEnd('\0');
+
+                    return Newtonsoft.Json.JsonConvert.DeserializeObject<JsonModel>(receiveString);
                 }
             }
             catch (SocketException ex)

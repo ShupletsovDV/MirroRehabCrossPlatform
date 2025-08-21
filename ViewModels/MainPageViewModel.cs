@@ -5,6 +5,8 @@ using MirroRehab.Models;
 using MirroRehab.Services;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Text.Json;
+
 #if ANDROID
 using Android.Content;
 #endif
@@ -14,11 +16,8 @@ namespace MirroRehab.ViewModels
 {
     public partial class MainPageViewModel : ObservableObject
     {
-        private readonly IBluetoothService _bluetoothService;
-        private readonly ICalibrationService _calibrationService;
-        private readonly IUdpClientService _udpClientService;
-        private readonly IPositionProcessor _positionProcessor;
-        private readonly IHandController _handController;
+        private readonly IHandController handController;
+        private IBluetoothService bluetoothService;
         private CancellationTokenSource _cancellationTokenSource;
         private IDevice _connectedDevice;
 
@@ -54,27 +53,34 @@ namespace MirroRehab.ViewModels
 
         public bool IsNotBusy => !IsBusy;
 
-        public MainPageViewModel(
-            IBluetoothService bluetoothService,
-            ICalibrationService calibrationService,
-            IUdpClientService udpClientService,
-            IPositionProcessor positionProcessor,
-            IHandController handController)
+
+        #region calibrate
+        private const string CalibrationPrefsKey = "MirroRehabCalibrationV1";
+
+        [ObservableProperty] double thumbFlex;
+        [ObservableProperty] double thumbExtend;
+        [ObservableProperty] double indexFlex;
+        [ObservableProperty] double indexExtend;
+        [ObservableProperty] double middleFlex;
+        [ObservableProperty] double middleExtend;
+        [ObservableProperty] double ringFlex;
+        [ObservableProperty] double ringExtend;
+        [ObservableProperty] double pinkyFlex;
+        [ObservableProperty] double pinkyExtend;
+        #endregion
+
+        public MainPageViewModel(IBluetoothService btService, IHandController controller)
         {
-            _bluetoothService = bluetoothService;
-            _calibrationService = calibrationService;
-            _udpClientService = udpClientService;
-            _positionProcessor = positionProcessor;
-            _handController = handController;
             IsBusy = true;
+
+            bluetoothService = btService;
+            handController = controller;
+
             Application.Current.UserAppTheme = AppTheme.Light;
-            if (_handController is HandController controller)
-            {
-                controller.TrackingDataReceived += OnTrackingDataReceived;
-            }
+            //handController.TrackingDataReceived += OnTrackingDataReceived;
 
             LoadSavedDevices();
-            Task.Run(InitialSearchDevicesAsync);
+            //Task.Run(InitialSearchDevicesAsync);
         }
         private void OnTrackingDataReceived(object sender, string data)
         {
@@ -115,42 +121,44 @@ namespace MirroRehab.ViewModels
         {
             try
             {
-                if (IsBusy) return;
                 IsBusy = true;
-                ShowError = false;
                 MessageInfo = "Поиск устройств MirroRehab...";
-                StatusColor = Colors.Black;
+                ShowError = false;
 
-                var foundDevices = await _bluetoothService.DiscoverMirroRehabDevicesAsync();
-                Devices.Clear();
-                foreach (var device in foundDevices)
+               
+                var discoveredDevices = await bluetoothService.DiscoverMirroRehabDevicesAsync();
+
+                await MainThread.InvokeOnMainThreadAsync(() =>
                 {
-                    if (!Devices.Any(d => d.Address == device.Address))
+                    Devices.Clear();
+                    foreach (var device in discoveredDevices)
                     {
                         Devices.Add(device);
                     }
-                }
+                    MessageInfo = discoveredDevices.Any() ? "Устройства найдены" : "Устройства не найдены";
+                });
 
                 SaveDevices();
-                MessageInfo = Devices.Any() ? $"Найдено устройств: {Devices.Count}" : "Устройства MirroRehab не найдены";
-                StatusColor = Devices.Any() ? Colors.Green : Colors.Yellow;
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Ошибка поиска: {ex.Message}");
-                MessageInfo = $"Ошибка: {ex.Message}";
-                ShowError = true;
-                StatusColor = Colors.Yellow;
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    MessageInfo = $"Ошибка поиска: {ex.Message}";
+                    ShowError = true;
+                    StatusColor = Colors.Red;
+                });
+                Debug.WriteLine($"Ошибка поиска устройств: {ex.Message}");
             }
             finally
             {
                 IsBusy = false;
-                IsCalibrated = true;
             }
         }
 
         private async Task EnsureConnected()
         {
+            
             if (SelectedDevice == null)
             {
                 MessageInfo = "Выберите устройство";
@@ -158,19 +166,19 @@ namespace MirroRehab.ViewModels
                 throw new InvalidOperationException("Устройство не выбрано");
             }
 
-            if (_connectedDevice == null || !_bluetoothService.IsConnected || _connectedDevice.Address != SelectedDevice.Address)
+            if (_connectedDevice == null || !bluetoothService.IsConnected || _connectedDevice.Address != SelectedDevice.Address)
             {
                 Debug.WriteLine($"Подключение к {SelectedDevice.Name}...");
                 try
                 {
-                    _connectedDevice = await _bluetoothService.ConnectToDeviceAsync(SelectedDevice.Address);
-                    IsConnected = _bluetoothService.IsConnected;
+                    _connectedDevice = await bluetoothService.ConnectToDeviceAsync(SelectedDevice.Address);
+                    IsConnected = bluetoothService.IsConnected;
                     MessageInfo = $"Подключено к {SelectedDevice.Name}";
                     StatusColor = Colors.Green;
                 }
                 catch (Exception ex)
                 {
-                    await _bluetoothService.DisconnectDeviceAsync();
+                    await bluetoothService.DisconnectDeviceAsync();
                     throw;
                 }
             }
@@ -179,26 +187,44 @@ namespace MirroRehab.ViewModels
         [RelayCommand]
         private async Task CalibrateDevice()
         {
+            if (SelectedDevice == null)
+            {
+                MessageInfo = "Выберите устройство для калибровки";
+                ShowError = true;
+                StatusColor = Colors.Red;
+                return;
+            }
+
             try
             {
-                if (IsBusy) return;
                 IsBusy = true;
-                await EnsureConnected();
-                await _calibrationService.CalibrateMinAsync(_connectedDevice);
-                await _calibrationService.CalibrateMaxAsync(_connectedDevice);
-                IsCalibrated = true;
-                MessageInfo = "Калибровка завершена!";
-                StatusColor = Colors.Green;
+                IsCalibrating = true;
+                MessageInfo = $"Калибровка устройства {SelectedDevice.Name}...";
+
+               /* var success = await handController.CalibrateDevice(_cancellationTokenSource.Token,SelectedDevice);
+
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    IsCalibrated = success;
+                    MessageInfo = success ? "Калибровка успешна" : "Ошибка калибровки";
+                    StatusColor = success ? Colors.Green : Colors.Red;
+                    ShowError = !success;
+                });*/
             }
             catch (Exception ex)
             {
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    MessageInfo = $"Ошибка калибровки: {ex.Message}";
+                    ShowError = true;
+                    StatusColor = Colors.Red;
+                });
                 Debug.WriteLine($"Ошибка калибровки: {ex.Message}");
-                MessageInfo = $"Ошибка калибровки: {ex.Message}";
-                StatusColor = Colors.Yellow;
             }
             finally
             {
                 IsBusy = false;
+               
             }
         }
 
@@ -207,28 +233,22 @@ namespace MirroRehab.ViewModels
         {
             try
             {
-                if (IsBusy || !IsCalibrated) return;
-                IsBusy = true;
+                /*if (IsBusy || !IsCalibrated) return;
+                IsBusy = true;*/
                 await EnsureConnected();
                 _cancellationTokenSource = new CancellationTokenSource();
                 IsRunning = true;
                 IsCalibrated = true;
                 Debug.WriteLine($"Запуск отслеживания...");
 
-#if ANDROID
-                var intent = new Intent(Platform.AppContext, typeof(MirroRehab.Platforms.Android.Services.BackgroundService));
-                intent.PutExtra("DeviceName", SelectedDevice.Name);
-                intent.PutExtra("DeviceAddress", SelectedDevice.Address);
-                Platform.AppContext.StartForegroundService(intent);
-#else
-                await _handController.StartTracking(_cancellationTokenSource.Token, SelectedDevice);
-#endif
+                Task.Run(async()=>await handController.StartTrackingAsync(_cancellationTokenSource.Token, SelectedDevice));
+
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Ошибка отслеживания: {ex.Message}");
                 MessageInfo = $"Ошибка отслеживания: {ex.Message}";
-                StatusColor = Colors.Yellow;
+                StatusColor = Colors.Red;
             }
             finally
             {
@@ -240,8 +260,9 @@ namespace MirroRehab.ViewModels
         [RelayCommand]
         private void StopTracking()
         {
+
             _cancellationTokenSource?.Cancel();
-            _bluetoothService.DisconnectDevice();
+            bluetoothService.DisconnectDevice();
             IsConnected = false;
             IsRunning = false;
             IsCalibrated = false;
@@ -255,11 +276,12 @@ namespace MirroRehab.ViewModels
         {
             try
             {
+
                 if (IsBusy) return;
                 if (SelectedDevice == null)
                 {
                     MessageInfo = "Выберите устройство";
-                    StatusColor = Colors.Yellow;
+                    StatusColor = Colors.Red;
                     return;
                 }
                 IsBusy = true;
@@ -269,13 +291,13 @@ namespace MirroRehab.ViewModels
                 MessageInfo = "Запуск демо...";
                 StatusColor = Colors.Black;
 
-                await _handController.DemoMirro(_cancellationTokenSource.Token, SelectedDevice);
+                await handController.DemoMirro(_cancellationTokenSource.Token, SelectedDevice);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Ошибка в демо: {ex.Message}");
                 MessageInfo = $"Ошибка демо: {ex.Message}";
-                StatusColor = Colors.Yellow;
+                StatusColor = Colors.Red;
             }
             finally
             {
@@ -283,5 +305,99 @@ namespace MirroRehab.ViewModels
                 IsRunning = false;
             }
         }
+
+
+
+        #region calibrate
+        partial void OnIsCalibratingChanged(bool value)
+        {
+            // При открытии подтянем сохранённые значения
+            if (value) LoadCalibration();
+        }
+
+        [RelayCommand]
+        private void OpenCalibration() => IsCalibrating = true;
+
+        [RelayCommand]
+        private void CancelCalibration()
+        {
+            IsCalibrating = false;
+            MessageInfo = "Калибровка отменена.";
+            StatusColor = Colors.Black;
+        }
+
+        [RelayCommand]
+        private async Task SaveCalibration()
+        {
+            try
+            {
+                var data = new CalibrationData
+                {
+                    ThumbFlex = ThumbFlex,
+                    ThumbExtend = ThumbExtend,
+                    IndexFlex = IndexFlex,
+                    IndexExtend = IndexExtend,
+                    MiddleFlex = MiddleFlex,
+                    MiddleExtend = MiddleExtend,
+                    RingFlex = RingFlex,
+                    RingExtend = RingExtend,
+                    PinkyFlex = PinkyFlex,
+                    PinkyExtend = PinkyExtend
+                };
+
+                var json = JsonSerializer.Serialize(data);
+                Preferences.Set(CalibrationPrefsKey, json);
+
+                // По желанию: сразу отправить в прошивку (пример)
+                // if (SelectedDevice != null && bluetoothService.IsConnected)
+                // {
+                //     string payload = $"CAL:{ThumbFlex},{ThumbExtend},{IndexFlex},{IndexExtend},{MiddleFlex},{MiddleExtend},{RingFlex},{RingExtend},{PinkyFlex},{PinkyExtend}";
+                //     await bluetoothService.SendDataAsync(payload);
+                // }
+
+                IsCalibrating = false;
+                MessageInfo = "Калибровка сохранена.";
+                StatusColor = Colors.Green;
+            }
+            catch (Exception ex)
+            {
+                MessageInfo = $"Ошибка сохранения калибровки: {ex.Message}";
+                StatusColor = Colors.Red;
+            }
+        }
+
+        private void LoadCalibration()
+        {
+            try
+            {
+                var json = Preferences.Get(CalibrationPrefsKey, string.Empty);
+                if (string.IsNullOrEmpty(json)) return;
+
+                var d = JsonSerializer.Deserialize<CalibrationData>(json);
+                if (d == null) return;
+
+                ThumbFlex = d.ThumbFlex; ThumbExtend = d.ThumbExtend;
+                IndexFlex = d.IndexFlex; IndexExtend = d.IndexExtend;
+                MiddleFlex = d.MiddleFlex; MiddleExtend = d.MiddleExtend;
+                RingFlex = d.RingFlex; RingExtend = d.RingExtend;
+                PinkyFlex = d.PinkyFlex; PinkyExtend = d.PinkyExtend;
+            }
+            catch { /* игнорируем, откроется с дефолтами */ }
+        }
+        #endregion
+    }
+
+    public class CalibrationData
+    {
+        public double ThumbFlex { get; set; }
+        public double ThumbExtend { get; set; }
+        public double IndexFlex { get; set; }
+        public double IndexExtend { get; set; }
+        public double MiddleFlex { get; set; }
+        public double MiddleExtend { get; set; }
+        public double RingFlex { get; set; }
+        public double RingExtend { get; set; }
+        public double PinkyFlex { get; set; }
+        public double PinkyExtend { get; set; }
     }
 }

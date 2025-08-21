@@ -1,13 +1,12 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Diagnostics;
 using MirroRehab.Interfaces;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace MirroRehab.Platforms.Windows.Services
 {
-    public class WindowsHandControllerService
+    public class WindowsHandControllerService : IHandController
     {
         private readonly IBluetoothService _bluetoothService;
         private readonly IUdpClientService _udpClientService;
@@ -23,7 +22,7 @@ namespace MirroRehab.Platforms.Windows.Services
             _positionProcessor = positionProcessor ?? throw new ArgumentNullException(nameof(positionProcessor));
         }
 
-        public async Task<bool> StartTracking(CancellationToken cancellationToken, IDevice device)
+        public async Task<bool> StartTrackingAsync(CancellationToken cancellationToken, IDevice device)
         {
             try
             {
@@ -33,21 +32,18 @@ namespace MirroRehab.Platforms.Windows.Services
                     return false;
                 }
 
-                // Не вызываем повторное подключение здесь!
                 Debug.WriteLine("Соединение предполагается уже открытым, повторное подключение не требуется.");
-
 
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    await _udpClientService.PingSensoAsync();
+                    
                     var receiveData = await _udpClientService.ReceiveDataAsync(cancellationToken);
-                    Debug.WriteLine($"Данные получены: {receiveData?.type}");
+                    Debug.WriteLine($"[WINDOWSCONTROLLER] Данные получены: {receiveData?.type}");
 
                     if (receiveData != null && receiveData.type == "position")
                     {
                         await _positionProcessor.ProcessPositionAsync(receiveData, _bluetoothService);
                     }
-                    receiveData = null;
                 }
                 return true;
             }
@@ -59,5 +55,16 @@ namespace MirroRehab.Platforms.Windows.Services
             }
         }
 
+
+        // Пустые реализации для CalibrateDevice и DemoMirro, так как они обрабатываются в HandController
+        public Task<bool> CalibrateDevice(CancellationToken cancellationToken,IDevice device)
+        {
+            throw new NotSupportedException("Калибровка должна выполняться через основной HandController.");
+        }
+
+        public Task DemoMirro(CancellationToken cancellationToken, IDevice device)
+        {
+            throw new NotSupportedException("Демо должно выполняться через основной HandController.");
+        }
     }
 }

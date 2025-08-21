@@ -4,24 +4,24 @@ namespace MirroRehab.Services
 {
     public class Dictionaries
     {
-        public int MaxIndex { get; set; } = 170;
+        public int MaxIndex { get; set; } = 120;
         public int MaxMiddle { get; set; } = 0;
-        public int MaxRing { get; set; } = 170;
+        public int MaxRing { get; set; } = 120;
         public int MaxPinky { get; set; } = 0;
 
         public int MinIndex { get; set; } = 0;
-        public int MinMiddle { get; set; } = 170;
+        public int MinMiddle { get; set; } = 120;
         public int MinRing { get; set; } = 0;
-        public int MinPinky { get; set; } = 170;
+        public int MinPinky { get; set; } = 120;
 
         public int MaxIndexRight { get; set; } = 0;
-        public int MaxMiddleRight { get; set; } = 170;
+        public int MaxMiddleRight { get; set; } = 120;
         public int MaxRingRight { get; set; } = 0;
-        public int MaxPinkyRight { get; set; } = 170;
+        public int MaxPinkyRight { get; set; } = 120;
 
-        public int MinIndexRight { get; set; } = 170;
+        public int MinIndexRight { get; set; } = 120;
         public int MinMiddleRight { get; set; } = 0;
-        public int MinRingRight { get; set; } = 170;
+        public int MinRingRight { get; set; } = 120;
         public int MinPinkyRight { get; set; } = 0;
 
         private readonly Dictionary<double, int> _myDict = new()
@@ -57,7 +57,7 @@ namespace MirroRehab.Services
         }
 
         public void UpdateDictionaries()
-        {
+        {/*
             DictIndex = RedistributeValues(_myDict, MinIndex, MaxIndex);
             DictMiddle = RedistributeValues(_myDictReverse, MinMiddle, MaxMiddle, true);
             DictRing = RedistributeValues(_myDict, MinRing, MaxRing);
@@ -65,29 +65,53 @@ namespace MirroRehab.Services
             DictIndexRight = RedistributeValues(_myDictReverse, MinIndexRight, MaxIndexRight, true);
             DictMiddleRight = RedistributeValues(_myDict, MinMiddleRight, MaxMiddleRight);
             DictRingRight = RedistributeValues(_myDictReverse, MinRingRight, MaxRingRight, true);
-            DictPinkyRight = RedistributeValues(_myDict, MinPinkyRight, MaxPinkyRight);
+            DictPinkyRight = RedistributeValues(_myDict, MinPinkyRight, MaxPinkyRight);*/
+
+            DictIndex = Dictionaries.RedistributeValues(_myDict, MinIndex, MaxIndex);
+            DictMiddle = Dictionaries.RedistributeValues(_myDictReverse, MinMiddle, MaxMiddle,true);
+            DictRing = Dictionaries.RedistributeValues(_myDict, MinRing, MaxRing);
+            DictPinky = Dictionaries.RedistributeValues(_myDictReverse, MinPinky, MaxPinky,true);
+
+
+
+            DictIndexRight = Dictionaries.RedistributeValues(_myDictReverse, MinIndexRight, MaxIndexRight, true);
+            DictMiddleRight = Dictionaries.RedistributeValues(_myDict, MinMiddleRight, MaxMiddleRight);
+            DictRingRight = Dictionaries.RedistributeValues(_myDictReverse, MinRingRight, MaxRingRight, true);
+            DictPinkyRight = Dictionaries.RedistributeValues(_myDict, MinPinkyRight, MaxPinkyRight);
         }
 
-        private Dictionary<double, int> RedistributeValues(Dictionary<double, int> dict, int minValue, int maxValue, bool reverse = false)
+        public static Dictionary<double, int> RedistributeValues(Dictionary<double, int> dict, int minValue, int maxValue, bool reverse = false)
         {
             if (dict.Count == 0) return new Dictionary<double, int>();
+
             int oldMin = dict.Values.Min();
             int oldMax = dict.Values.Max();
 
             if (oldMin == oldMax)
+            {
                 return dict.ToDictionary(kvp => kvp.Key, kvp => minValue);
+            }
 
-            return dict.ToDictionary(kvp =>
+            Dictionary<double, int> newDict = new Dictionary<double, int>();
+
+            foreach (var kvp in dict)
             {
+                double key = kvp.Key;
                 int oldValue = kvp.Value;
-                if (reverse) oldValue = oldMax - (oldValue - oldMin);
-                return kvp.Key;
-            }, kvp =>
-            {
-                int oldValue = kvp.Value;
-                if (reverse) oldValue = oldMax - (oldValue - oldMin);
-                return (int)Math.Round(((double)(oldValue - oldMin) / (oldMax - oldMin)) * (maxValue - minValue) + minValue);
-            });
+
+                // Реверсируем значение относительно старого диапазона, если нужно
+                if (reverse)
+                {
+                    oldValue = oldMax - (oldValue - oldMin);
+                }
+
+                // Преобразуем значение в новый диапазон
+                int newValue = (int)Math.Round(((double)(oldValue - oldMin) / (oldMax - oldMin)) * (maxValue - minValue) + minValue);
+
+                newDict[key] = newValue;
+            }
+
+            return newDict;
         }
     }
 }

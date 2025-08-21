@@ -3,43 +3,30 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using MirroRehab.Interfaces;
-using MirroRehab.ViewModels;
 using Microsoft.Maui.Controls;
 
 namespace MirroRehab.Services
 {
-    public class HandController : IHandController
+    public class HandController
     {
-        private static HandController _instance;
         private readonly IBluetoothService _bluetoothService;
-        private readonly IUdpClientService _udpClientService;
-        private readonly IPositionProcessor _positionProcessor;
+        private readonly IHandController _platformHandController;
         private readonly Dictionaries _dictionaries;
 
         public event EventHandler<string> TrackingDataReceived;
         public event EventHandler<(string Message, Color Color)> DemoStatusUpdated;
 
-        public static HandController GetHandController(
-            IBluetoothService bluetoothService,
-            IUdpClientService udpClientService,
-            IPositionProcessor positionProcessor)
-        {
-            return _instance ??= new HandController(bluetoothService, udpClientService, positionProcessor);
-        }
-
         public HandController(
             IBluetoothService bluetoothService,
-            IUdpClientService udpClientService,
-            IPositionProcessor positionProcessor)
+            IHandController platformHandController)
         {
             _bluetoothService = bluetoothService ?? throw new ArgumentNullException(nameof(bluetoothService));
-            _udpClientService = udpClientService ?? throw new ArgumentNullException(nameof(udpClientService));
-            _positionProcessor = positionProcessor ?? throw new ArgumentNullException(nameof(positionProcessor));
+            _platformHandController = platformHandController ?? throw new ArgumentNullException(nameof(platformHandController));
             _dictionaries = new Dictionaries();
             _dictionaries.UpdateDictionaries();
         }
 
-        public async Task<bool> CalibrateDevice(IDevice device)
+        public async Task<bool> CalibrateDevice(CancellationToken cancellationToken, IDevice device)
         {
             try
             {
@@ -49,14 +36,7 @@ namespace MirroRehab.Services
                     return false;
                 }
 
-                if (!_bluetoothService.IsConnected)
-                {
-                    Debug.WriteLine($"Подключение к {device.Name}...");
-                    await _bluetoothService.ConnectToDeviceAsync(device.Address);
-                }
-
-                Debug.WriteLine($"Калибровка устройства {device.Name} успешна");
-                return true;
+                return await _platformHandController.CalibrateDevice(cancellationToken, device);
             }
             catch (Exception ex)
             {
@@ -65,9 +45,7 @@ namespace MirroRehab.Services
             }
         }
 
-        
-
-        public async Task<bool> StartTracking(CancellationToken cancellationToken, IDevice device)
+        public async Task<bool> StartTrackingAsync(CancellationToken cancellationToken, IDevice device)
         {
             try
             {
@@ -77,16 +55,7 @@ namespace MirroRehab.Services
                     return false;
                 }
 
-#if ANDROID
-                var platformService = new MirroRehab.Platforms.Android.Services.AndroidHandControllerService();
-                return await platformService.StartTrackingAsync(cancellationToken, device);
-#elif WINDOWS
-                var platformService = new MirroRehab.Platforms.Windows.Services.WindowsHandControllerService();
-                return await platformService.StartTracking(cancellationToken, device);
-#endif
-                return false;
-
-
+                return await _platformHandController.StartTrackingAsync(cancellationToken, device);
             }
             catch (Exception ex)
             {
@@ -94,7 +63,8 @@ namespace MirroRehab.Services
                 return false;
             }
         }
-        public async Task DemoMirro(CancellationToken cancellationToken, IDevice device)
+
+        public  async Task DemoMirro(CancellationToken cancellationToken, IDevice device)
         {
             int sleep = 50;
 
@@ -232,11 +202,135 @@ namespace MirroRehab.Services
             }
         }
 
+
+        public static async Task DemoMirro(CancellationToken cancellationToken, IDevice device, IBluetoothService bluetoothService, Dictionaries dictionaries)
+        {
+            int sleep = 50;
+
+            try
+            {
+                // Логика проверки подключения
+                if (device == null)
+                {
+                    Debug.WriteLine("Ошибка: Устройство не выбрано");
+                    return;
+                }
+
+                if (!bluetoothService.IsConnected)
+                {
+                    Debug.WriteLine($"Подключение к устройству {device.Name}");
+                    await bluetoothService.ConnectToDeviceAsync(device.Address);
+                }
+
+                if (dictionaries.DictIndex == null || dictionaries.DictMiddle == null || dictionaries.DictRing == null || dictionaries.DictPinky == null)
+                {
+                    throw new InvalidOperationException("Словари не инициализированы");
+                }
+
+                Debug.WriteLine("Демо запущено");
+
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    sleep = new Random().Next(10, 60);
+
+                    // Сжатие всех пальцев
+                    for (double i = 0.0; i <= 3.0; i += 0.1)
+                    {
+                        if (cancellationToken.IsCancellationRequested) break;
+
+                        double roundedI = Math.Round(i, 1);
+                        if (!dictionaries.DictIndex.ContainsKey(roundedI) || !dictionaries.DictMiddle.ContainsKey(roundedI) || !dictionaries.DictRing.ContainsKey(roundedI) || !dictionaries.DictPinky.ContainsKey(roundedI))
+                        {
+                            Debug.WriteLine($"Ключ {roundedI} отсутствует в словарях");
+                            continue;
+                        }
+
+                        string defaultData = $"{dictionaries.DictIndex[roundedI]},{dictionaries.DictMiddle[roundedI]},{dictionaries.DictRing[roundedI]},{dictionaries.DictPinky[roundedI]},0";
+                        await bluetoothService.SendDataAsync(defaultData);
+                        await Task.Delay(sleep, cancellationToken);
+                    }
+
+                    // Разжатие всех пальцев
+                    for (double i = 3.0; i >= 0.0; i -= 0.1)
+                    {
+                        if (cancellationToken.IsCancellationRequested) break;
+
+                        double roundedI = Math.Round(i, 1);
+                        if (!dictionaries.DictIndex.ContainsKey(roundedI) || !dictionaries.DictMiddle.ContainsKey(roundedI) || !dictionaries.DictRing.ContainsKey(roundedI) || !dictionaries.DictPinky.ContainsKey(roundedI))
+                        {
+                            Debug.WriteLine($"Ключ {roundedI} отсутствует в словарях");
+                            continue;
+                        }
+
+                        string defaultData = $"{dictionaries.DictIndex[roundedI]},{dictionaries.DictMiddle[roundedI]},{dictionaries.DictRing[roundedI]},{dictionaries.DictPinky[roundedI]},0";
+                        await bluetoothService.SendDataAsync(defaultData);
+                        await Task.Delay(sleep, cancellationToken);
+                    }
+
+                    // Сжатие и разжатие пальцев по отдельности
+                    for (int finger = 0; finger < 4; finger++)
+                    {
+                        if (cancellationToken.IsCancellationRequested) break;
+                        for (double i = 0.0; i <= 3.0; i += 0.1)
+                        {
+                            if (cancellationToken.IsCancellationRequested) break;
+                            double roundedI = Math.Round(i, 1);
+                            if (!dictionaries.DictIndex.ContainsKey(roundedI) || !dictionaries.DictMiddle.ContainsKey(roundedI) || !dictionaries.DictRing.ContainsKey(roundedI) || !dictionaries.DictPinky.ContainsKey(roundedI))
+                            {
+                                Debug.WriteLine($"Ключ {roundedI} отсутствует в словарях");
+                                continue;
+                            }
+
+                            string a1 = finger == 0 ? $"{dictionaries.DictIndex[roundedI]}" : $"{dictionaries.DictIndex[0.0]}";
+                            string b1 = finger == 1 ? $"{dictionaries.DictMiddle[roundedI]}" : $"{dictionaries.DictMiddle[0.0]}";
+                            string c1 = finger == 2 ? $"{dictionaries.DictRing[roundedI]}" : $"{dictionaries.DictRing[0.0]}";
+                            string f1 = finger == 3 ? $"{dictionaries.DictPinky[roundedI]}" : $"{dictionaries.DictPinky[0.0]}";
+                            string defaultData = $"{a1},{b1},{c1},{f1},0";
+                            await bluetoothService.SendDataAsync(defaultData);
+                            await Task.Delay(sleep, cancellationToken);
+                        }
+
+                        for (double i = 3.0; i >= 0.0; i -= 0.1)
+                        {
+                            if (cancellationToken.IsCancellationRequested) break;
+                            double roundedI = Math.Round(i, 1);
+                            if (!dictionaries.DictIndex.ContainsKey(roundedI) || !dictionaries.DictMiddle.ContainsKey(roundedI) || !dictionaries.DictRing.ContainsKey(roundedI) || !dictionaries.DictPinky.ContainsKey(roundedI))
+                            {
+                                Debug.WriteLine($"Ключ {roundedI} отсутствует в словарях");
+                                continue;
+                            }
+
+                            string a1 = finger == 0 ? $"{dictionaries.DictIndex[roundedI]}" : $"{dictionaries.DictIndex[0.0]}";
+                            string b1 = finger == 1 ? $"{dictionaries.DictMiddle[roundedI]}" : $"{dictionaries.DictMiddle[0.0]}";
+                            string c1 = finger == 2 ? $"{dictionaries.DictRing[roundedI]}" : $"{dictionaries.DictRing[0.0]}";
+                            string f1 = finger == 3 ? $"{dictionaries.DictPinky[roundedI]}" : $"{dictionaries.DictPinky[0.0]}";
+                            string defaultData = $"{a1},{b1},{c1},{f1},0";
+                            await bluetoothService.SendDataAsync(defaultData);
+                            await Task.Delay(sleep, cancellationToken);
+                        }
+                    }
+                }
+
+                Debug.WriteLine("Демо остановлено");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Ошибка в демо: {ex.Message}");
+            }
+            finally
+            {
+                await bluetoothService.DisconnectDeviceAsync();
+                Debug.WriteLine("Соединение закрыто");
+            }
+        }
+
         private void UpdateViewModel(string message, Color color)
         {
-            TrackingDataReceived?.Invoke(this, $"handController: {message}");
-
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                TrackingDataReceived?.Invoke(this, $"handController: {message}");
+                DemoStatusUpdated?.Invoke(this, (message, color));
+            });
         }
-        
     }
 }

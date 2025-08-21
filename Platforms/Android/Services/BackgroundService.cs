@@ -1,13 +1,9 @@
 ﻿using Android.App;
 using Android.Content;
 using Android.OS;
-using Microsoft.Extensions.DependencyInjection;
 using MirroRehab.Interfaces;
 using MirroRehab.Models;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Diagnostics;
+using MirroRehab.Services;
 
 namespace MirroRehab.Platforms.Android.Services
 {
@@ -36,16 +32,18 @@ namespace MirroRehab.Platforms.Android.Services
         {
             var deviceName = intent?.GetStringExtra("DeviceName");
             var deviceAddress = intent?.GetStringExtra("DeviceAddress");
+            var actionType = intent?.GetStringExtra("ActionType");
 
             if (string.IsNullOrEmpty(deviceName) || string.IsNullOrEmpty(deviceAddress))
             {
                 System.Diagnostics.Debug.WriteLine("[BackgroundService] Ошибка: устройство не передано");
                 StopSelf();
-                return StartCommandResult.NotSticky;
+                return StartCommandResult.NotSticky;  // Сервис не перезапускается
             }
 
             _device = new DeviceStub(deviceName, deviceAddress);
 
+            // Запуск Notification для Foreground
             if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
             {
                 var channelId = "mirro_rehab_channel";
@@ -63,57 +61,88 @@ namespace MirroRehab.Platforms.Android.Services
                 StartForeground(1, notification);
             }
 
-            Task.Run(() => RunBackgroundTask(_cts.Token));
+            // В зависимости от ActionType выполняем отслеживание или демо
+            if (actionType == "tracking")
+            {
+                Task.Run(() => RunTrackingTask(_cts.Token));
+            }
+            else if (actionType == "demo")
+            {
+                Task.Run(() => RunDemoTask(_cts.Token));
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[BackgroundService] Неизвестный тип действия");
+                StopSelf();  // Остановка сервиса, если тип действия неизвестен
+            }
+
             System.Diagnostics.Debug.WriteLine("[BackgroundService] Сервис запущен");
-            return StartCommandResult.Sticky;
+            return StartCommandResult.NotSticky;  // Останавливаем сервис после выполнения задачи
         }
 
-        private async Task RunBackgroundTask(CancellationToken cancellationToken)
+        private async Task RunTrackingTask(CancellationToken cancellationToken)
         {
-            System.Diagnostics.Debug.WriteLine("[BackgroundService] Фоновая задача запущена");
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                try
-                {
-                    System.Diagnostics.Debug.WriteLine("[BackgroundService] Начало итерации");
-                    if (!_bluetoothService.IsConnected)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[BackgroundService] Подключение к {_device.Name} ({_device.Address})...");
-                        await _bluetoothService.ConnectToDeviceAsync(_device.Address);
-                       
-                        System.Diagnostics.Debug.WriteLine($"[BackgroundService] Подключено к {_device.Name}");
-                    }
+            System.Diagnostics.Debug.WriteLine("[BackgroundService] Запуск отслеживания");
 
-                    System.Diagnostics.Debug.WriteLine("[BackgroundService] Ожидание данных...");
-                    var receiveData = await _udpClientService.ReceiveDataAsync(cancellationToken);
-                    if (receiveData != null && receiveData.type == "position")
-                    {
-                        if (_bluetoothService.IsConnected)
-                        {
-                            await _positionProcessor.ProcessPositionAsync(receiveData, _bluetoothService);
-                            System.Diagnostics.Debug.WriteLine($"[BackgroundService] Данные обработаны: {_device.Name}");
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine("[BackgroundService] Соединение потеряно перед отправкой данных");
-                            _bluetoothService.DisconnectDevice();
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[BackgroundService] Получены некорректные данные или данных нет: {receiveData?.type}");
-                    }
-                    System.Diagnostics.Debug.WriteLine("[BackgroundService] Итерация завершена");
-                }
-                catch (Exception ex)
+            try
+            {
+                if (!_bluetoothService.IsConnected)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[BackgroundService] Ошибка в фоновом сервисе: {ex.Message}, StackTrace: {ex.StackTrace}");
-                    _bluetoothService.DisconnectDevice(); // Сброс соединения при ошибке
+                    System.Diagnostics.Debug.WriteLine($"[BackgroundService] Подключение к {_device.Name} ({_device.Address})...");
+                    await _bluetoothService.ConnectToDeviceAsync(_device.Address);
+                    System.Diagnostics.Debug.WriteLine($"[BackgroundService] Подключено к {_device.Name}");
+                }
+
+                // Логика отслеживания
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    // Реализация отслеживания...
                     await Task.Delay(1000, cancellationToken);
                 }
             }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BackgroundService] Ошибка отслеживания: {ex.Message}");
+            }
+            finally
+            {
+                _bluetoothService.DisconnectDevice();
+                System.Diagnostics.Debug.WriteLine("[BackgroundService] Завершение отслеживания");
+                StopSelf(); // Остановка сервиса после завершения отслеживания
+            }
         }
+
+        private async Task RunDemoTask(CancellationToken cancellationToken)
+        {
+            System.Diagnostics.Debug.WriteLine("[BackgroundService] Запуск демо");
+
+            try
+            {
+                if (!_bluetoothService.IsConnected)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[BackgroundService] Подключение к {_device.Name} ({_device.Address})...");
+                    await _bluetoothService.ConnectToDeviceAsync(_device.Address);
+                    System.Diagnostics.Debug.WriteLine($"[BackgroundService] Подключено к {_device.Name}");
+                }
+
+                // Демо-запуск
+                
+                await HandController.DemoMirro(cancellationToken, _device,_bluetoothService,new Dictionaries());
+
+                System.Diagnostics.Debug.WriteLine("[BackgroundService] Демо завершено");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[BackgroundService] Ошибка выполнения демо: {ex.Message}");
+            }
+            finally
+            {
+                _bluetoothService.DisconnectDevice();
+                System.Diagnostics.Debug.WriteLine("[BackgroundService] Завершение демо");
+                StopSelf(); // Остановка сервиса после завершения демо
+            }
+        }
+
         public override void OnDestroy()
         {
             _cts?.Cancel();

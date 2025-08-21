@@ -1,85 +1,126 @@
 ﻿using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
-using System.Threading.Tasks;
 
-namespace MirroRehab.Controls
+namespace MirroRehab.Controls;
+
+public class LoadingIndicator : ContentView
 {
-    public class LoadingIndicator : ContentView
+    readonly BoxView[] _dots = new BoxView[3];
+    bool _isAnimating;
+
+    // Настройки
+    public double DotSize { get; set; } = 15;
+    public double Offset { get; set; } = 10;         // высота прыжка
+    public uint PhaseMs { get; set; } = 250;        // 4 * 250 = 1000ms как в CSS
+    public Color DotColor { get; set; } = Colors.Blue;
+
+    Grid _layout;
+
+    public LoadingIndicator()
     {
-        private readonly ContentView _rotator;
-        private bool _isAnimating;
+        // Гарантированно даём место по Y
+        var totalHeight = DotSize + 2 * Offset;
 
-        public LoadingIndicator()
+        _layout = new Grid
         {
-            WidthRequest = 60;
-            HeightRequest = 60;
-
-            var container = new Grid
+            WidthRequest = 60,
+            HeightRequest = totalHeight,               // важно!
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions = LayoutOptions.Center,
+            RowDefinitions =
             {
-                WidthRequest = 60,
-                HeightRequest = 60
-            };
-
-            container.RowDefinitions.Add(new RowDefinition());
-            container.RowDefinitions.Add(new RowDefinition());
-            container.ColumnDefinitions.Add(new ColumnDefinition());
-            container.ColumnDefinitions.Add(new ColumnDefinition());
-
-            for (int i = 0; i < 4; i++)
+                new RowDefinition { Height = new GridLength(totalHeight, GridUnitType.Absolute) } // важно!
+            },
+            ColumnDefinitions =
             {
-                var circle = new Frame
-                {
-                    WidthRequest = 16,
-                    HeightRequest = 16,
-                    CornerRadius = 8,
-                    BackgroundColor = Colors.Blue,
-                    HasShadow = false,
-                    Padding = 0,
-                    HorizontalOptions = LayoutOptions.Center,
-                    VerticalOptions = LayoutOptions.Center
-                };
-
-                container.Children.Add(circle);
-                Grid.SetRow(circle, i / 2);
-                Grid.SetColumn(circle, i % 2);
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Star },
+                new ColumnDefinition { Width = GridLength.Star },
             }
+        };
 
-            _rotator = new ContentView
+        for (int i = 0; i < 3; i++)
+        {
+            var dot = new BoxView
             {
-                WidthRequest = 60,
-                HeightRequest = 60,
-                Content = container
+                WidthRequest = DotSize,
+                HeightRequest = DotSize,
+                CornerRadius = (float)(DotSize / 2),
+                BackgroundColor = DotColor,
+                HorizontalOptions = LayoutOptions.Center,
+                VerticalOptions = LayoutOptions.Center,
+                TranslationY = 0 // MID
             };
-
-            Content = _rotator;
+            _dots[i] = dot;
+            _layout.Children.Add(dot);
+            Grid.SetRow(dot, 0);
+            Grid.SetColumn(dot, i);
         }
 
-        protected override void OnParentSet()
+        // Чтобы не подрезались вылеты (обычно не требуется, но на всякий случай)
+        _layout.IsClippedToBounds = false;
+        this.IsClippedToBounds = false;
+
+        Content = _layout;
+    }
+
+    protected override void OnParentSet()
+    {
+        base.OnParentSet();
+        if (Parent != null && !_isAnimating)
+            StartAnimation();
+    }
+
+    async void StartAnimation()
+    {
+        _isAnimating = true;
+
+        // В MAUI: Y вниз = положительно, вверх = отрицательно
+        double TOP = -Offset; // вверх
+        double MID = 0;
+        double BOT = +Offset; // вниз
+
+        // Начальное состояние: как 0% (все MID), сразу перейдём к 20%
+        foreach (var d in _dots) d.TranslationY = MID;
+
+        while (_isAnimating)
         {
-            base.OnParentSet();
+            // 20%: left=TOP, center=MID, right=MID
+            await Task.WhenAll(
+                _dots[0].TranslateTo(0, MID, PhaseMs, Easing.Linear),
+                _dots[1].TranslateTo(0, MID, PhaseMs, Easing.Linear),
+                _dots[2].TranslateTo(0, MID, PhaseMs, Easing.Linear)
+            );
 
-            if (Parent != null && !_isAnimating)
-                StartAnimation();
-        }
+            // 40%: left=BOT, center=TOP, right=MID
+            await Task.WhenAll(
+                _dots[0].TranslateTo(0, BOT, PhaseMs, Easing.Linear), // ВНИЗ
+                _dots[1].TranslateTo(0, TOP, PhaseMs, Easing.Linear), // ВВЕРХ
+                _dots[2].TranslateTo(0, MID, PhaseMs, Easing.Linear)
+            );
 
-        private async void StartAnimation()
-        {
-            _isAnimating = true;
+            // 60%: left=MID, center=BOT, right=TOP
+            await Task.WhenAll(
+                _dots[0].TranslateTo(0, MID, PhaseMs, Easing.Linear),
+                _dots[1].TranslateTo(0, BOT, PhaseMs, Easing.Linear), // ВНИЗ
+                _dots[2].TranslateTo(0, TOP, PhaseMs, Easing.Linear)  // ВВЕРХ
+            );
 
-            while (_isAnimating)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    await Task.WhenAll(
-                        _rotator.RotateTo(_rotator.Rotation + 45, 300, Easing.SinInOut),
-                        _rotator.ScaleTo(i % 2 == 0 ? 1.15 : 1.0, 300, Easing.SinInOut)
-                    );
-                }
+            // 80%: left=MID, center=MID, right=BOT
+            await Task.WhenAll(
+                _dots[0].TranslateTo(0, MID, PhaseMs, Easing.Linear),
+                _dots[1].TranslateTo(0, MID, PhaseMs, Easing.Linear),
+                _dots[2].TranslateTo(0, BOT, PhaseMs, Easing.Linear)  // ВНИЗ
+            );
 
-                // Легкая пауза между оборотами
-                await Task.Delay(100);
-            }
+            // 100% -> цикл повторяется (снова к 20%)
         }
     }
 
+    protected override void OnBindingContextChanged()
+    {
+        base.OnBindingContextChanged();
+        if (!IsVisible)
+            _isAnimating = false;
+    }
 }

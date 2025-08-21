@@ -47,11 +47,43 @@ namespace MirroRehab.Services
 
         private (double, double, double, double) NormalizeAngles(double angIndex, double angMiddle, double angRing, double angPinky)
         {
-            angIndex = Math.Max(0, Math.Min(angIndex, _dictionaries.MaxIndex));
-            angMiddle = Math.Max(0, Math.Min(angMiddle, _dictionaries.MaxMiddle));
-            angRing = Math.Max(0, Math.Min(angRing, _dictionaries.MaxRing));
-            angPinky = Math.Max(0, Math.Min(angPinky, _dictionaries.MaxPinky));
+            if (angIndex < 0)
+            {
+                angIndex = 0.0;
+            }
+            if (angIndex > 3)
+            {
+                angIndex = 3;
+            }
+
+            if (angMiddle < 0)
+            {
+                angMiddle = 0.0;
+            }
+            if (angMiddle > 3)
+            {
+                angMiddle = 3;
+            }
+
+            if (angPinky < 0)
+            {
+                angPinky = 0.0;
+            }
+            if (angPinky > 3)
+            {
+                angPinky = 3;
+            }
+
+            if (angRing < 0)
+            {
+                angRing = 0.0;
+            }
+            if (angRing > 3)
+            {
+                angRing = 3;
+            }
             return (angIndex, angMiddle, angRing, angPinky);
         }
+
     }
 }
