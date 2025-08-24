@@ -6,10 +6,10 @@
              xmlns:controls="clr-namespace:MirroRehab.Controls"
              x:Class="MirroRehab.MainPage">
 
-    <Frame CornerRadius="10" Padding="0" VerticalOptions="FillAndExpand" HorizontalOptions="FillAndExpand">
-        <Grid HorizontalOptions="FillAndExpand" VerticalOptions="FillAndExpand" >
+    <Frame CornerRadius="10" Padding="0" BackgroundColor="{AppThemeBinding Light={StaticResource BackgroundLight}, Dark={StaticResource BackgroundDark}}">
+        <Grid BackgroundColor="{AppThemeBinding Light={StaticResource BackgroundLight}, Dark={StaticResource BackgroundDark}}" >
 
-            <Grid Padding="20" HorizontalOptions="FillAndExpand" VerticalOptions="FillAndExpand" Margin="0">
+            <Grid Padding="20"  Margin="0">
                 <!-- Основной контейнер -->
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -39,10 +39,10 @@
                 </VerticalStackLayout>
 
                 <!-- Панель статуса (правая часть) -->
-                <Grid Grid.Column="1" 
-                      HorizontalOptions="FillAndExpand" 
-                      VerticalOptions="FillAndExpand"
-                      BackgroundColor="LightGray" >
+                <Frame Grid.Column="1" 
+                       CornerRadius="16"
+                        BackgroundColor="Transparent">
+                <Grid >
                     <!-- Для наглядности -->
 
                     <!-- Центрированный контент -->
@@ -64,14 +64,15 @@
 
                         <!-- Статусное сообщение -->
                         <Label Text="{Binding MessageInfo}" 
-               HorizontalOptions="Center"
-               TextColor="{Binding StatusColor}"/>
+                               HorizontalOptions="Center"
+                               TextColor="{Binding StatusColor}"/>
 
                     </VerticalStackLayout>
 
                 </Grid>
+                </Frame>
 
-               
+
 
             </Grid>
             <controls:CalibrationOverlay HorizontalOptions="FillAndExpand" VerticalOptions="FillAndExpand"/>

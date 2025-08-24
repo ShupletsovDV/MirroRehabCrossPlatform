@@ -8,15 +8,14 @@
           BackgroundColor="#80000000"
           IsVisible="{Binding IsCalibrating}"
           InputTransparent="False"    
-          HorizontalOptions="FillAndExpand"
-          VerticalOptions="FillAndExpand"
+         
           Padding="16"
           Margin="0"
           ZIndex="9999">
         <Frame HasShadow="True"
                CornerRadius="16"
                Padding="16"
-               BackgroundColor="White"
+               BackgroundColor="{AppThemeBinding Light={StaticResource BackgroundLight}, Dark={StaticResource BackgroundDark}}"
                HorizontalOptions="Center"
                VerticalOptions="Center"
                >
@@ -33,99 +32,45 @@
                           RowDefinitions="Auto,Auto,Auto,Auto,Auto"
                           ColumnSpacing="12" RowSpacing="10">
 
-                        <!-- Большой палец -->
-                        <Label Grid.Row="0" Grid.Column="0" Text="Большой" VerticalOptions="Center"/>
-                        <controls:PrettySlider Grid.Row="1"  Grid.Column="1"
+
+                        <Label Grid.Row="0" Grid.Column="1" Text="Сжатие"  VerticalOptions="Center" HorizontalOptions="Center"/>
+                        <Label Grid.Row="0" Grid.Column="3" Text="Разжатие"  VerticalOptions="Center" HorizontalOptions="Center"/>
+
+                        
+                        
+                        <!-- Указательный палец -->
+                        <Label Grid.Row="1" Grid.Column="0" Text="Указательный"  VerticalOptions="End"/>
+                        <controls:PrettySlider Grid.Row="1"  Grid.Column="1" VerticalOptions="Start"
                                                Minimum="0" Maximum="180"
                                                Step="5"
                                                ShowTicks="True" TickEvery="10"
                                                Value="{Binding IndexFlex, Mode=TwoWay}" />
-                        <Label Grid.Row="0" Grid.Column="2"  Text="{Binding ThumbFlex, StringFormat='{0:F0}°'}"
-                               VerticalOptions="Center" HorizontalTextAlignment="Center"/>
-                        <Slider Grid.Row="0" Grid.Column="3"  Minimum="0" Maximum="180"
-                                Value="{Binding ThumbExtend, Mode=TwoWay}">
-                            <Slider.Behaviors>
-                                <behaviors:StepSliderBehavior Step="5"/>
-                            </Slider.Behaviors>
-                        </Slider>
-                        <Label Grid.Row="0" Grid.Column="4" Text="{Binding ThumbExtend, StringFormat='{0:F0}°'}"
-                               VerticalOptions="Center" HorizontalTextAlignment="Center"/>
 
-                        <!-- Указательный -->
-                        <Label Grid.Row="1" Grid.Column="0" Text="Указательный" VerticalOptions="Center"/>
-                        <Slider Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="180"
-                                Value="{Binding IndexFlex, Mode=TwoWay}">
-                            <Slider.Behaviors>
-                                <behaviors:StepSliderBehavior Step="5"/>
-                            </Slider.Behaviors>
-                        </Slider>
-                        <Label Grid.Row="1" Grid.Column="2" Text="{Binding IndexFlex, StringFormat='{0:F0}°'}"
-                               VerticalOptions="Center" HorizontalTextAlignment="Center"/>
-                        <Slider Grid.Row="1" Grid.Column="3" Minimum="0" Maximum="180"
-                                Value="{Binding IndexExtend, Mode=TwoWay}">
-                            <Slider.Behaviors>
-                                <behaviors:StepSliderBehavior Step="5"/>
-                            </Slider.Behaviors>
-                        </Slider>
-                        <Label Grid.Row="1" Grid.Column="4" Text="{Binding IndexExtend, StringFormat='{0:F0}°'}"
-                               VerticalOptions="Center" HorizontalTextAlignment="Center"/>
+                        <!-- Средний палец -->
+                        <Label Grid.Row="2" Grid.Column="0" Text="Средний"  VerticalOptions="End"/>
+                        <controls:PrettySlider Grid.Row="2"  Grid.Column="1" VerticalOptions="Start"
+                           Minimum="0" Maximum="180"
+                             Step="5"
+                           ShowTicks="True" TickEvery="10"
+                           Value="{Binding indexFlex, Mode=TwoWay}" />
 
-                        <!-- Средний -->
-                        <Label Grid.Row="2" Grid.Column="0" Text="Средний" VerticalOptions="Center"/>
-                        <Slider Grid.Row="2" Grid.Column="1" Minimum="0" Maximum="180"
-                                Value="{Binding MiddleFlex, Mode=TwoWay}">
-                            <Slider.Behaviors>
-                                <behaviors:StepSliderBehavior Step="5"/>
-                            </Slider.Behaviors>
-                        </Slider>
-                        <Label Grid.Row="2" Grid.Column="2" Text="{Binding MiddleFlex, StringFormat='{0:F0}°'}"
-                               VerticalOptions="Center" HorizontalTextAlignment="Center"/>
-                        <Slider Grid.Row="2" Grid.Column="3" Minimum="0" Maximum="180"
-                                Value="{Binding MiddleExtend, Mode=TwoWay}">
-                            <Slider.Behaviors>
-                                <behaviors:StepSliderBehavior Step="5"/>
-                            </Slider.Behaviors>
-                        </Slider>
-                        <Label Grid.Row="2" Grid.Column="4" Text="{Binding MiddleExtend, StringFormat='{0:F0}°'}"
-                               VerticalOptions="Center" HorizontalTextAlignment="Center"/>
+                        <!-- Безымянный палец -->
+                        <Label Grid.Row="3" Grid.Column="0" Text="Безымянный"  VerticalOptions="End"/>
+                        <controls:PrettySlider Grid.Row="3"  Grid.Column="1" VerticalOptions="Start"
+                                               Minimum="0" Maximum="180"
+                                                 Step="5"
+                                               ShowTicks="True" TickEvery="10"
+                                               Value="{Binding indexFlex, Mode=TwoWay}" />
 
-                        <!-- Безымянный -->
-                        <Label Grid.Row="3" Grid.Column="0" Text="Безымянный" VerticalOptions="Center"/>
-                        <Slider Grid.Row="3" Grid.Column="1" Minimum="0" Maximum="180"
-                                Value="{Binding RingFlex, Mode=TwoWay}">
-                            <Slider.Behaviors>
-                                <behaviors:StepSliderBehavior Step="5"/>
-                            </Slider.Behaviors>
-                        </Slider>
-                        <Label Grid.Row="3" Grid.Column="2" Text="{Binding RingFlex, StringFormat='{0:F0}°'}"
-                               VerticalOptions="Center" HorizontalTextAlignment="Center"/>
-                        <Slider Grid.Row="3" Grid.Column="3" Minimum="0" Maximum="180"
-                                Value="{Binding RingExtend, Mode=TwoWay}">
-                            <Slider.Behaviors>
-                                <behaviors:StepSliderBehavior Step="5"/>
-                            </Slider.Behaviors>
-                        </Slider>
-                        <Label Grid.Row="3" Grid.Column="4" Text="{Binding RingExtend, StringFormat='{0:F0}°'}"
-                               VerticalOptions="Center" HorizontalTextAlignment="Center"/>
 
-                        <!-- Мизинец -->
-                        <Label Grid.Row="4" Grid.Column="0" Text="Мизинец" VerticalOptions="Center"/>
-                        <Slider Grid.Row="4" Grid.Column="1" Minimum="0" Maximum="180"
-                                Value="{Binding PinkyFlex, Mode=TwoWay}">
-                            <Slider.Behaviors>
-                                <behaviors:StepSliderBehavior Step="5"/>
-                            </Slider.Behaviors>
-                        </Slider>
-                        <Label Grid.Row="4" Grid.Column="2" Text="{Binding PinkyFlex, StringFormat='{0:F0}°'}"
-                               VerticalOptions="Center" HorizontalTextAlignment="Center"/>
-                        <Slider Grid.Row="4" Grid.Column="3" Minimum="0" Maximum="180"
-                                Value="{Binding PinkyExtend, Mode=TwoWay}">
-                            <Slider.Behaviors>
-                                <behaviors:StepSliderBehavior Step="5"/>
-                            </Slider.Behaviors>
-                        </Slider>
-                        <Label Grid.Row="4" Grid.Column="4" Text="{Binding PinkyExtend, StringFormat='{0:F0}°'}"
-                               VerticalOptions="Center" HorizontalTextAlignment="Center"/>
+                        <!-- Мизинец палец -->
+                        <Label Grid.Row="4" Grid.Column="0" Text="Мизинец"  VerticalOptions="End"/>
+                        <controls:PrettySlider Grid.Row="4"  Grid.Column="1" VerticalOptions="Start"
+                                                Minimum="0" Maximum="180"
+                                                 Step="5"
+                                                ShowTicks="True" TickEvery="10"
+                                                Value="{Binding indexFlex, Mode=TwoWay}" />
+
 
                     </Grid>
 

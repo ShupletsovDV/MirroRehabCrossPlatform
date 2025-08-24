@@ -1,90 +1,55 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="MirroRehab.Controls.PrettySlider"
-            HorizontalOptions="FillAndExpand"
-            VerticalOptions="FillAndExpand">
-
-    <Grid RowDefinitions="Auto" ColumnDefinitions="*"
-          VerticalOptions="Center" HeightRequest="40">
-
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" x:Class="MirroRehab.Controls.PrettySlider" x:Name="Root">
+    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*" VerticalOptions="Start" HeightRequest="60">
         <!-- Слой трека/прогресса/тиков -->
-        <Grid x:Name="TrackHost"
-              Margin="8,12"
-              VerticalOptions="FillAndExpand"
-              HorizontalOptions="FillAndExpand">
+        <Grid x:Name="TrackHost" Margin="8,12" Grid.Row="1">
             <!-- Базовый трек -->
-            <Border x:Name="Track"
-                    VerticalOptions="Center"
-                    HeightRequest="10"
-                    StrokeThickness="0">
+            <Border x:Name="Track" HorizontalOptions="Fill" VerticalOptions="Center" HeightRequest="0" StrokeThickness="0">
                 <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="6"/>
+                    <RoundRectangle CornerRadius="20"/>
+                    <!-- progress-radius -->
                 </Border.StrokeShape>
                 <Border.Background>
                     <SolidColorBrush Color="#EEEEEE"/>
+                    <!-- progress-background -->
                 </Border.Background>
             </Border>
-
-            <!-- Тики (опционально, добавляем из кода) -->
-            <Grid x:Name="TicksLayer"/>
-
+            <!-- Слой тиков (Grid для поддержки Children.Clear/Add) -->
+            <Grid x:Name="TicksLayer" HorizontalOptions="Fill" VerticalOptions="Start" Margin="0,0,0,5"/>
+            <!-- ticks-gap -->
             <!-- Заполненная часть (градиент) -->
-            <Border x:Name="Progress"
-                    VerticalOptions="Center"
-                    HeightRequest="10"
-                    WidthRequest="0"
-                    StrokeThickness="0">
+            <Border x:Name="Progress" HorizontalOptions="Start" VerticalOptions="Center" HeightRequest="11" WidthRequest="0" StrokeThickness="0">
                 <Border.StrokeShape>
-                    <RoundRectangle CornerRadius="6"/>
+                    <RoundRectangle CornerRadius="20"/>
                 </Border.StrokeShape>
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                        <GradientStop Color="LightCyan" Offset="0" />
-                        <GradientStop Color="#0366D6" Offset="1" />
+                        <GradientStop Color="LightCyan" Offset="0"/>
+                        <GradientStop Color="#0366D6" Offset="1"/>
+                        <!-- fill-color -->
                     </LinearGradientBrush>
                 </Border.Background>
             </Border>
-
-            <!-- «Шайба» -->
-            <Border x:Name="Thumb"
-                    WidthRequest="22" HeightRequest="22"
-                    StrokeThickness="0"
-                    TranslationX="0" TranslationY="0">
+            <!-- Thumb (шайба) -->
+            <Border x:Name="Thumb" HorizontalOptions="Start" WidthRequest="22" HeightRequest="22" StrokeThickness="0" TranslationX="0" TranslationY="0">
                 <Border.Shadow>
-                    <Shadow Opacity="0.3" Radius="8"/>
+                    <Shadow Opacity="0.4" Radius="3" Offset="0,0"/>
+                    <!-- thumb-shadow -->
                 </Border.Shadow>
                 <Border.StrokeShape>
                     <Ellipse />
                 </Border.StrokeShape>
                 <Border.Background>
                     <SolidColorBrush Color="White"/>
+                    <!-- thumb-color -->
                 </Border.Background>
             </Border>
-
-            <!-- «Пузырёк» со значением -->
-            <Frame x:Name="Bubble"
-                   Padding="2,1"
-                   CornerRadius="6"
-                   HasShadow="False"
-                   BackgroundColor="#0366D6"
-                   TranslationY="-26"
-                   IsVisible="{Binding ShowValueBubble, Source={x:Reference Root}}">
-                <Label x:Name="BubbleText" FontSize="12" TextColor="White"/>
-            </Frame>
+            <!-- Пузырек со значением -->
         </Grid>
-
-        <!-- Невидимый нативный Slider, ловит жесты -->
-        <Slider x:Name="NativeSlider"
-                Grid.Row="0"
-                Minimum="{Binding Minimum, Source={x:Reference Root}}"
-                Maximum="{Binding Maximum, Source={x:Reference Root}}"
-                Value="{Binding Value, Source={x:Reference Root}, Mode=TwoWay}"
-                Opacity="0.01"
-                MinimumTrackColor="Transparent"
-                MaximumTrackColor="Transparent"
-                ThumbColor="Transparent"
-                HorizontalOptions="FillAndExpand"
-                VerticalOptions="FillAndExpand"/>
+        <Frame x:Name="Bubble" Grid.Row="0" Padding="2,4" WidthRequest="40" CornerRadius="10" HasShadow="False" BackgroundColor="#0366D6" HorizontalOptions="Start" Margin="8,0" TranslationX="0" TranslationY="0" IsVisible="{Binding ShowValueBubble, Source={x:Reference Root}}">
+            <Label x:Name="BubbleText" FontSize="12" FontAttributes="Bold" TextColor="White" HorizontalOptions="Center"/>
+        </Frame>
+        <!-- Невидимый нативный Slider для обработки жестов -->
+        <Slider x:Name="NativeSlider" Grid.Row="1" Minimum="{Binding Minimum, Source={x:Reference Root}}" Maximum="{Binding Maximum, Source={x:Reference Root}}" Value="{Binding Value, Source={x:Reference Root}, Mode=TwoWay}" Opacity="0.01" MinimumTrackColor="Transparent" MaximumTrackColor="Transparent" ThumbColor="Transparent"/>
     </Grid>
 </ContentView>
